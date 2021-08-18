@@ -72,8 +72,8 @@ public class HostTestHelper {
                 .setEnableRollback(PackageManager.ROLLBACK_DATA_POLICY_WIPE);
         Install b2 = Install.single(TestApp.B2).setStaged()
                 .setEnableRollback(PackageManager.ROLLBACK_DATA_POLICY_RESTORE);
-        // The rollback data policy of C2 is specified in the manifest
-        Install c2 = Install.single(TestApp.C2).setStaged().setEnableRollback();
+        Install c2 = Install.single(TestApp.C2).setStaged()
+                .setEnableRollback(PackageManager.ROLLBACK_DATA_POLICY_RETAIN);
         Install.multi(a2, b2, c2).setEnableRollback().setStaged().commit();
     }
 
@@ -97,10 +97,10 @@ public class HostTestHelper {
         assertThat(InstallUtils.getInstalledVersion(TestApp.C)).isEqualTo(1);
         // Read user data version from userdata.txt
         // A's user data version is -1 for user data is wiped.
-        // B's user data version is 1 as rollback committed.
-        // C's user data version is -1 for user data is wiped.
+        // B's user data version is 1 for user data is restored.
+        // C's user data version is 2 for user data is retained.
         assertThat(InstallUtils.getUserDataVersion(TestApp.A)).isEqualTo(-1);
         assertThat(InstallUtils.getUserDataVersion(TestApp.B)).isEqualTo(1);
-        assertThat(InstallUtils.getUserDataVersion(TestApp.C)).isEqualTo(-1);
+        assertThat(InstallUtils.getUserDataVersion(TestApp.C)).isEqualTo(2);
     }
 }
