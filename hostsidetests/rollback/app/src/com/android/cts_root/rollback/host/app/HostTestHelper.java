@@ -103,4 +103,39 @@ public class HostTestHelper {
         assertThat(InstallUtils.getUserDataVersion(TestApp.B)).isEqualTo(1);
         assertThat(InstallUtils.getUserDataVersion(TestApp.C)).isEqualTo(2);
     }
+
+    @Test
+    public void testRollbackApkDataDirectories_Phase1_InstallV1() throws Exception {
+        Install.single(TestApp.A1).commit();
+    }
+
+    @Test
+    public void testRollbackApkDataDirectories_Phase2_InstallV2() throws Exception {
+        Install.single(TestApp.A2).setStaged().setEnableRollback().commit();
+    }
+
+    @Test
+    public void testRollbackApkDataDirectories_Phase3_Rollback() throws Exception {
+        RollbackInfo available = RollbackUtils.getAvailableRollback(TestApp.A);
+        RollbackUtils.rollback(available.getRollbackId(), TestApp.A2);
+    }
+
+    @Test
+    public void testExpireSession_Phase1_Install() throws Exception {
+        Install.single(TestApp.A1).commit();
+        Install.single(TestApp.A2).setEnableRollback().setStaged().commit();
+    }
+
+    @Test
+    public void testExpireSession_Phase2_VerifyInstall() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(2);
+        RollbackInfo rollback = RollbackUtils.getAvailableRollback(TestApp.A);
+        assertThat(rollback).isNotNull();
+    }
+
+    @Test
+    public void testExpireSession_Phase3_VerifyRollback() throws Exception {
+        RollbackInfo rollback = RollbackUtils.getAvailableRollback(TestApp.A);
+        assertThat(rollback).isNotNull();
+    }
 }
