@@ -138,4 +138,9 @@ public class HostTestHelper {
         RollbackInfo rollback = RollbackUtils.getAvailableRollback(TestApp.A);
         assertThat(rollback).isNotNull();
     }
+
+    @Test
+    public void testRollbackApexDataDirectories_Phase1_Install() throws Exception {
+        Install.single(TestApp.Apex2).setStaged().setEnableRollback().commit();
+    }
 }
