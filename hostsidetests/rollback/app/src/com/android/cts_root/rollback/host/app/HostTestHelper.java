@@ -16,16 +16,24 @@
 
 package com.android.cts_root.rollback.host.app;
 
+import static com.android.cts.rollback.lib.RollbackInfoSubject.assertThat;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.rollback.RollbackInfo;
 import android.content.rollback.RollbackManager;
+import android.os.storage.StorageManager;
+import android.provider.DeviceConfig;
+
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.cts.install.lib.Install;
 import com.android.cts.install.lib.InstallUtils;
 import com.android.cts.install.lib.TestApp;
+import com.android.cts.rollback.lib.Rollback;
 import com.android.cts.rollback.lib.RollbackUtils;
 
 import org.junit.After;
@@ -34,17 +42,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * On-device helper test methods used for host-driven rollback tests.
  */
 @RunWith(JUnit4.class)
 public class HostTestHelper {
+    private static final String PROPERTY_WATCHDOG_TRIGGER_FAILURE_COUNT =
+            "watchdog_trigger_failure_count";
+
     @Before
     public void setup() {
         InstallUtils.adoptShellPermissionIdentity(
                     Manifest.permission.INSTALL_PACKAGES,
                     Manifest.permission.DELETE_PACKAGES,
-                    Manifest.permission.TEST_MANAGE_ROLLBACKS);
+                    Manifest.permission.TEST_MANAGE_ROLLBACKS,
+                    Manifest.permission.FORCE_STOP_PACKAGES,
+                    Manifest.permission.WRITE_DEVICE_CONFIG);
     }
 
     @After
@@ -142,5 +157,97 @@ public class HostTestHelper {
     @Test
     public void testRollbackApexDataDirectories_Phase1_Install() throws Exception {
         Install.single(TestApp.Apex2).setStaged().setEnableRollback().commit();
+    }
+
+    @Test
+    public void testBadApkOnly_Phase1_Install() throws Exception {
+        Install.single(TestApp.A1).commit();
+        Install.single(TestApp.ACrashing2).setEnableRollback().setStaged().commit();
+    }
+
+    @Test
+    public void testBadApkOnly_Phase2_VerifyInstall() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(2);
+
+        RollbackInfo rollback = RollbackUtils.getAvailableRollback(TestApp.A);
+        assertThat(rollback).isNotNull();
+        assertThat(rollback).packagesContainsExactly(Rollback.from(TestApp.A2).to(TestApp.A1));
+        assertThat(rollback.isStaged()).isTrue();
+
+        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_ROLLBACK,
+                PROPERTY_WATCHDOG_TRIGGER_FAILURE_COUNT,
+                Integer.toString(5), false);
+        RollbackUtils.sendCrashBroadcast(TestApp.A, 4);
+        // Sleep for a while to make sure we don't trigger rollback
+        Thread.sleep(TimeUnit.SECONDS.toMillis(30));
+    }
+
+    @Test
+    public void testBadApkOnly_Phase3_VerifyRollback() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(1);
+
+        RollbackInfo rollback = RollbackUtils.getCommittedRollback(TestApp.A);
+        assertThat(rollback).isNotNull();
+        assertThat(rollback).packagesContainsExactly(Rollback.from(TestApp.A2).to(TestApp.A1));
+        assertThat(rollback).causePackagesContainsExactly(TestApp.ACrashing2);
+        assertThat(rollback).isStaged();
+        assertThat(rollback.getCommittedSessionId()).isNotEqualTo(-1);
+    }
+
+    @Test
+    public void testNativeWatchdogTriggersRollback_Phase1_Install() throws Exception {
+        Install.single(TestApp.A1).commit();
+        Install.single(TestApp.A2).setEnableRollback().setStaged().commit();
+    }
+
+    @Test
+    public void testNativeWatchdogTriggersRollback_Phase2_VerifyInstall() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(2);
+        RollbackInfo rollback = RollbackUtils.getAvailableRollback(TestApp.A);
+        assertThat(rollback).isNotNull();
+    }
+
+    @Test
+    public void testNativeWatchdogTriggersRollback_Phase3_VerifyRollback() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(1);
+        RollbackInfo rollback = RollbackUtils.getCommittedRollback(TestApp.A);
+        assertThat(rollback).isNotNull();
+    }
+
+    @Test
+    public void testNativeWatchdogTriggersRollbackForAll_Phase1_Install() throws Exception {
+        Install.single(TestApp.A1).commit();
+        Install.single(TestApp.B1).commit();
+        Install.single(TestApp.A2).setEnableRollback().setStaged().commit();
+        Install.single(TestApp.B2).setEnableRollback().setStaged().commit();
+    }
+
+    @Test
+    public void testNativeWatchdogTriggersRollbackForAll_Phase2_VerifyInstall() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(2);
+        assertThat(InstallUtils.getInstalledVersion(TestApp.B)).isEqualTo(2);
+        RollbackInfo rollbackA = RollbackUtils.getAvailableRollback(TestApp.A);
+        RollbackInfo rollbackB = RollbackUtils.getAvailableRollback(TestApp.B);
+        assertThat(rollbackA).isNotNull();
+        assertThat(rollbackB).isNotNull();
+        assertThat(rollbackA.getRollbackId()).isNotEqualTo(rollbackB.getRollbackId());
+    }
+
+    @Test
+    public void testNativeWatchdogTriggersRollbackForAll_Phase3_VerifyRollback() throws Exception {
+        assertThat(InstallUtils.getInstalledVersion(TestApp.A)).isEqualTo(1);
+        assertThat(InstallUtils.getInstalledVersion(TestApp.B)).isEqualTo(1);
+        RollbackInfo rollbackA = RollbackUtils.getCommittedRollback(TestApp.A);
+        RollbackInfo rollbackB = RollbackUtils.getCommittedRollback(TestApp.B);
+        assertThat(rollbackA).isNotNull();
+        assertThat(rollbackB).isNotNull();
+        assertThat(rollbackA.getRollbackId()).isNotEqualTo(rollbackB.getRollbackId());
+    }
+
+    @Test
+    public void isCheckpointSupported() {
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        StorageManager sm = (StorageManager) context.getSystemService(Context.STORAGE_SERVICE);
+        assertThat(sm.isCheckpointSupported()).isTrue();
     }
 }
