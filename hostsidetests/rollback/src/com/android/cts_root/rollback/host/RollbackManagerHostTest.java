@@ -16,10 +16,14 @@
 
 package com.android.cts_root.rollback.host;
 
+import static com.android.cts.shim.lib.ShimPackage.SHIM_APEX_PACKAGE_NAME;
+
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.fail;
+
+import android.cts.install.lib.host.InstallUtilsHost;
 
 import com.android.ddmlib.Log;
 import com.android.tradefed.device.DeviceNotAvailableException;
@@ -57,6 +61,8 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     private static final String TEST_FILENAME_4 = "one_more.test";
     private static final String TEST_STRING_4 = "once more unto the test";
 
+    private final InstallUtilsHost mHostUtils = new InstallUtilsHost(this);
+
     private void run(String method) throws Exception {
         assertThat(runDeviceTests("com.android.cts_root.rollback.host.app",
                 "com.android.cts_root.rollback.host.app.HostTestHelper",
@@ -72,6 +78,7 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
         getDevice().uninstallPackage("com.android.cts.install.lib.testapp.B");
         getDevice().uninstallPackage("com.android.cts.install.lib.testapp.C");
         run("cleanUp");
+        mHostUtils.uninstallShimApexIfNecessary();
     }
 
     /**
@@ -131,6 +138,179 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
         assertFileContents(TEST_STRING_2, oldFilePath2);
         assertFileNotExists(newFilePath3);
         assertFileNotExists(newFilePath4);
+    }
+
+    /**
+     * Tests that data in CE apex data directory is restored when apex is rolled back.
+     */
+    @Test
+    public void testRollbackApexDataDirectories_Ce() throws Exception {
+        List<String> before = getSnapshotDirectories("/data/misc_ce/0/apexrollback");
+
+        // Push files to apex data directory
+        String oldFilePath1 = apexDataDirCe(
+                SHIM_APEX_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_1;
+        String oldFilePath2 = apexDataDirCe(
+                SHIM_APEX_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_2;
+        pushString(TEST_STRING_1, oldFilePath1);
+        pushString(TEST_STRING_2, oldFilePath2);
+
+        // Install new version of the APEX with rollback enabled
+        run("testRollbackApexDataDirectories_Phase1_Install");
+        getDevice().reboot();
+
+        // Replace files in data directory
+        String newFilePath3 = apexDataDirCe(
+                SHIM_APEX_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_3;
+        String newFilePath4 = apexDataDirCe(
+                SHIM_APEX_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_4;
+        getDevice().deleteFile(oldFilePath1);
+        getDevice().deleteFile(oldFilePath2);
+        pushString(TEST_STRING_3, newFilePath3);
+        pushString(TEST_STRING_4, newFilePath4);
+
+        // Roll back the APEX
+        getDevice().executeShellCommand("pm rollback-app " + SHIM_APEX_PACKAGE_NAME);
+        getDevice().reboot();
+
+        // Verify that old files have been restored and new files are gone
+        assertFileContents(TEST_STRING_1, oldFilePath1);
+        assertFileContents(TEST_STRING_2, oldFilePath2);
+        assertFileNotExists(newFilePath3);
+        assertFileNotExists(newFilePath4);
+
+        // Verify snapshots are deleted after restoration
+        List<String> after = getSnapshotDirectories("/data/misc_ce/0/apexrollback");
+        // Only check directories newly created during the test
+        after.removeAll(before);
+        // There should be only one /data/misc_ce/0/apexrollback/<rollbackId> created during test
+        assertThat(after).hasSize(1);
+        assertDirectoryIsEmpty(after.get(0));
+    }
+
+    /**
+     * Tests that data in DE (user) apex data directory is restored when apex is rolled back.
+     */
+    @Test
+    public void testRollbackApexDataDirectories_DeUser() throws Exception {
+        List<String> before = getSnapshotDirectories("/data/misc_de/0/apexrollback");
+
+        // Push files to apex data directory
+        String oldFilePath1 = apexDataDirDeUser(
+                SHIM_APEX_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_1;
+        String oldFilePath2 = apexDataDirDeUser(
+                SHIM_APEX_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_2;
+        pushString(TEST_STRING_1, oldFilePath1);
+        pushString(TEST_STRING_2, oldFilePath2);
+
+        // Install new version of the APEX with rollback enabled
+        run("testRollbackApexDataDirectories_Phase1_Install");
+        getDevice().reboot();
+
+        // Replace files in data directory
+        String newFilePath3 = apexDataDirDeUser(
+                SHIM_APEX_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_3;
+        String newFilePath4 = apexDataDirDeUser(
+                SHIM_APEX_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_4;
+        getDevice().deleteFile(oldFilePath1);
+        getDevice().deleteFile(oldFilePath2);
+        pushString(TEST_STRING_3, newFilePath3);
+        pushString(TEST_STRING_4, newFilePath4);
+
+        // Roll back the APEX
+        getDevice().executeShellCommand("pm rollback-app " + SHIM_APEX_PACKAGE_NAME);
+        getDevice().reboot();
+
+        // Verify that old files have been restored and new files are gone
+        assertFileContents(TEST_STRING_1, oldFilePath1);
+        assertFileContents(TEST_STRING_2, oldFilePath2);
+        assertFileNotExists(newFilePath3);
+        assertFileNotExists(newFilePath4);
+
+        // Verify snapshots are deleted after restoration
+        List<String> after = getSnapshotDirectories("/data/misc_de/0/apexrollback");
+        // Only check directories newly created during the test
+        after.removeAll(before);
+        // There should be only one /data/misc_de/0/apexrollback/<rollbackId> created during test
+        assertThat(after).hasSize(1);
+        assertDirectoryIsEmpty(after.get(0));
+    }
+
+    /**
+     * Tests that data in DE_sys apex data directory is restored when apex is rolled back.
+     */
+    @Test
+    public void testRollbackApexDataDirectories_DeSys() throws Exception {
+        List<String> before = getSnapshotDirectories("/data/misc/apexrollback");
+
+        // Push files to apex data directory
+        String oldFilePath1 = apexDataDirDeSys(
+                SHIM_APEX_PACKAGE_NAME) + "/" + TEST_FILENAME_1;
+        String oldFilePath2 = apexDataDirDeSys(
+                SHIM_APEX_PACKAGE_NAME) + TEST_SUBDIR + TEST_FILENAME_2;
+        pushString(TEST_STRING_1, oldFilePath1);
+        pushString(TEST_STRING_2, oldFilePath2);
+
+        // Install new version of the APEX with rollback enabled
+        run("testRollbackApexDataDirectories_Phase1_Install");
+        getDevice().reboot();
+
+        // Replace files in data directory
+        String newFilePath3 = apexDataDirDeSys(
+                SHIM_APEX_PACKAGE_NAME) + "/" + TEST_FILENAME_3;
+        String newFilePath4 = apexDataDirDeSys(
+                SHIM_APEX_PACKAGE_NAME) + TEST_SUBDIR + TEST_FILENAME_4;
+        getDevice().deleteFile(oldFilePath1);
+        getDevice().deleteFile(oldFilePath2);
+        pushString(TEST_STRING_3, newFilePath3);
+        pushString(TEST_STRING_4, newFilePath4);
+
+        // Roll back the APEX
+        getDevice().executeShellCommand("pm rollback-app " + SHIM_APEX_PACKAGE_NAME);
+        getDevice().reboot();
+
+        // Verify that old files have been restored and new files are gone
+        assertFileContents(TEST_STRING_1, oldFilePath1);
+        assertFileContents(TEST_STRING_2, oldFilePath2);
+        assertFileNotExists(newFilePath3);
+        assertFileNotExists(newFilePath4);
+
+        // Verify snapshots are deleted after restoration
+        List<String> after = getSnapshotDirectories("/data/misc/apexrollback");
+        // Only check directories newly created during the test
+        after.removeAll(before);
+        // There should be only one /data/misc/apexrollback/<rollbackId> created during test
+        assertThat(after).hasSize(1);
+        assertDirectoryIsEmpty(after.get(0));
+    }
+
+    /**
+     * Tests that apex CE snapshots are deleted when its rollback is deleted.
+     */
+    @Test
+    public void testExpireApexRollback() throws Exception {
+        List<String> before = getSnapshotDirectories("/data/misc_ce/0/apexrollback");
+
+        // Push files to apex data directory
+        String oldFilePath1 = apexDataDirCe(
+                SHIM_APEX_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_1;
+        String oldFilePath2 = apexDataDirCe(
+                SHIM_APEX_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_2;
+        pushString(TEST_STRING_1, oldFilePath1);
+        pushString(TEST_STRING_2, oldFilePath2);
+
+        // Install new version of the APEX with rollback enabled
+        run("testRollbackApexDataDirectories_Phase1_Install");
+        getDevice().reboot();
+
+        List<String> after = getSnapshotDirectories("/data/misc_ce/0/apexrollback");
+        // Only check directories newly created during the test
+        after.removeAll(before);
+        // There should be only one /data/misc_ce/0/apexrollback/<rollbackId> created during test
+        assertThat(after).hasSize(1);
+        // Expire all rollbacks and check CE snapshot directories are deleted
+        run("cleanUp");
+        assertFileNotExists(after.get(0));
     }
 
     /**
@@ -199,6 +379,18 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
 
     private static String apkDataDirDe(String apkName, int userId) {
         return String.format("/data/user_de/%d/%s", userId, apkName);
+    }
+
+    private static String apexDataDirCe(String apexName, int userId) {
+        return String.format("/data/misc_ce/%d/apexdata/%s", userId, apexName);
+    }
+
+    private static String apexDataDirDeUser(String apexName, int userId) {
+        return String.format("/data/misc_de/%d/apexdata/%s", userId, apexName);
+    }
+
+    private static String apexDataDirDeSys(String apexName) {
+        return String.format("/data/misc/apexdata/%s", apexName);
     }
 
     private void pushString(String contents, String path) throws Exception {
