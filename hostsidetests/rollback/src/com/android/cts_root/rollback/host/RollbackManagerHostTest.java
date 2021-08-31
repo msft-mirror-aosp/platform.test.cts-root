@@ -17,6 +17,7 @@
 package com.android.cts_root.rollback.host;
 
 import static com.android.cts.shim.lib.ShimPackage.SHIM_APEX_PACKAGE_NAME;
+import static com.android.cts.shim.lib.ShimPackage.SHIM_PACKAGE_NAME;
 import static com.android.cts_root.rollback.host.WatchdogEventLogger.Subject.assertThat;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -125,6 +126,44 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
         // There should be only one /data/misc_ce/0/rollback/<rollbackId> created during test
         assertThat(after).hasSize(1);
         assertDirectoryIsEmpty(after.get(0));
+    }
+
+    /**
+     * Tests that userdata of apk-in-apex is restored when apex is rolled back.
+     */
+    @Test
+    public void testRollbackApkInApexDataDirectories_Ce() throws Exception {
+        // Push files to apk data directory
+        String oldFilePath1 = apkDataDirCe(
+                SHIM_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_1;
+        String oldFilePath2 = apkDataDirCe(
+                SHIM_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_2;
+        pushString(TEST_STRING_1, oldFilePath1);
+        pushString(TEST_STRING_2, oldFilePath2);
+
+        // Install new version of the APEX with rollback enabled
+        run("testRollbackApexDataDirectories_Phase1_Install");
+        getDevice().reboot();
+
+        // Replace files in data directory
+        String newFilePath3 = apkDataDirCe(
+                SHIM_PACKAGE_NAME, 0) + "/" + TEST_FILENAME_3;
+        String newFilePath4 = apkDataDirCe(
+                SHIM_PACKAGE_NAME, 0) + TEST_SUBDIR + TEST_FILENAME_4;
+        getDevice().deleteFile(oldFilePath1);
+        getDevice().deleteFile(oldFilePath2);
+        pushString(TEST_STRING_3, newFilePath3);
+        pushString(TEST_STRING_4, newFilePath4);
+
+        // Roll back the APEX
+        getDevice().executeShellCommand("pm rollback-app " + SHIM_APEX_PACKAGE_NAME);
+        getDevice().reboot();
+
+        // Verify that old files have been restored and new files are gone
+        assertFileContents(TEST_STRING_1, oldFilePath1);
+        assertFileContents(TEST_STRING_2, oldFilePath2);
+        assertFileNotExists(newFilePath3);
+        assertFileNotExists(newFilePath4);
     }
 
     /**
@@ -490,6 +529,10 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     private void assertFileNotExists(String path) throws Exception {
         assertWithMessage("File shouldn't exist, path=%s", path)
                 .that(getDevice().getFileEntry(path)).isNull();
+    }
+
+    private static String apkDataDirCe(String apkName, int userId) {
+        return String.format("/data/user/%d/%s", userId, apkName);
     }
 
     private static String apkDataDirDe(String apkName, int userId) {
