@@ -391,10 +391,14 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
 
         try {
             getDevice().setDate(Date.from(t2));
-            // Somehow we need to send the broadcast before reboot. Otherwise the change to the
-            // system clock will be lost after reboot.
+            // Send the broadcast to ensure the time change is properly propagated
             getDevice().executeShellCommand("am broadcast -a android.intent.action.TIME_SET");
-            getDevice().reboot();
+            // TODO(b/197298469): Time change will be lost after reboot and sessions won't be
+            //  expired correctly. We restart system server so sessions will be reloaded and expired
+            //  as a workaround.
+            getDevice().executeShellCommand("stop");
+            getDevice().executeShellCommand("start");
+            getDevice().waitForDeviceAvailable();
             run("testExpireSession_Phase3_VerifyRollback");
         } finally {
             // Restore system clock
