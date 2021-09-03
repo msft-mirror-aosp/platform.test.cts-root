@@ -17,11 +17,13 @@
 package com.android.cts_root.rollback.host;
 
 import static com.android.cts.shim.lib.ShimPackage.SHIM_APEX_PACKAGE_NAME;
+import static com.android.cts_root.rollback.host.WatchdogEventLogger.Subject.assertThat;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 import android.cts.install.lib.host.InstallUtilsHost;
 
@@ -50,6 +52,14 @@ import java.util.stream.Collectors;
 public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     private static final String TAG = "RollbackManagerHostTest";
 
+    private static final int NATIVE_CRASHES_THRESHOLD = 5;
+
+    private static final String REASON_APP_CRASH = "REASON_APP_CRASH";
+    private static final String REASON_NATIVE_CRASH = "REASON_NATIVE_CRASH";
+    private static final String ROLLBACK_INITIATE = "ROLLBACK_INITIATE";
+    private static final String ROLLBACK_BOOT_TRIGGERED = "ROLLBACK_BOOT_TRIGGERED";
+    private static final String ROLLBACK_SUCCESS = "ROLLBACK_SUCCESS";
+
     private static final String TESTAPP_A = "com.android.cts.install.lib.testapp.A";
     private static final String TEST_SUBDIR = "/subdir/";
     private static final String TEST_FILENAME_1 = "test_file.txt";
@@ -62,6 +72,7 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     private static final String TEST_STRING_4 = "once more unto the test";
 
     private final InstallUtilsHost mHostUtils = new InstallUtilsHost(this);
+    private WatchdogEventLogger mLogger = new WatchdogEventLogger();
 
     private void run(String method) throws Exception {
         assertThat(runDeviceTests("com.android.cts_root.rollback.host.app",
@@ -72,6 +83,7 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     @Before
     @After
     public void cleanUp() throws Exception {
+        getDevice().enableAdbRoot();
         getDevice().executeShellCommand("for i in $(pm list staged-sessions --only-sessionid "
                 + "--only-parent); do pm install-abandon $i; done");
         getDevice().uninstallPackage("com.android.cts.install.lib.testapp.A");
@@ -79,6 +91,18 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
         getDevice().uninstallPackage("com.android.cts.install.lib.testapp.C");
         run("cleanUp");
         mHostUtils.uninstallShimApexIfNecessary();
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        getDevice().enableAdbRoot();
+        mLogger.start(getDevice());
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        getDevice().enableAdbRoot();
+        mLogger.stop();
     }
 
     /**
@@ -340,6 +364,97 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
         }
     }
 
+    /**
+     * Tests watchdog triggered staged rollbacks involving only apks.
+     */
+    @Test
+    public void testBadApkOnly() throws Exception {
+        run("testBadApkOnly_Phase1_Install");
+        getDevice().reboot();
+        run("testBadApkOnly_Phase2_VerifyInstall");
+
+        // Launch the app to crash to trigger rollback
+        startActivity(TESTAPP_A);
+        // Wait for reboot to happen
+        waitForDeviceNotAvailable(2, TimeUnit.MINUTES);
+
+        getDevice().waitForDeviceAvailable();
+
+        run("testBadApkOnly_Phase3_VerifyRollback");
+
+        assertThat(mLogger).eventOccurred(ROLLBACK_INITIATE, null, REASON_APP_CRASH, TESTAPP_A);
+        assertThat(mLogger).eventOccurred(ROLLBACK_BOOT_TRIGGERED, null, null, null);
+        assertThat(mLogger).eventOccurred(ROLLBACK_SUCCESS, null, null, null);
+    }
+
+    /**
+     * Tests rollbacks triggered by the native watchdog.
+     */
+    @Test
+    public void testNativeWatchdogTriggersRollback() throws Exception {
+        run("testNativeWatchdogTriggersRollback_Phase1_Install");
+        getDevice().reboot();
+        run("testNativeWatchdogTriggersRollback_Phase2_VerifyInstall");
+
+        // crash system_server enough times to trigger a rollback
+        crashProcess("system_server", NATIVE_CRASHES_THRESHOLD);
+
+        // Rollback should be committed automatically now.
+        // Give time for rollback to be committed. This could take a while,
+        // because we need all of the following to happen:
+        // 1. system_server comes back up and boot completes.
+        // 2. Rollback health observer detects updatable crashing signal.
+        // 3. Staged rollback session becomes ready.
+        // 4. Device actually reboots.
+        // So we give a generous timeout here.
+        waitForDeviceNotAvailable(5, TimeUnit.MINUTES);
+        getDevice().waitForDeviceAvailable();
+
+        // verify rollback committed
+        run("testNativeWatchdogTriggersRollback_Phase3_VerifyRollback");
+
+        assertThat(mLogger).eventOccurred(ROLLBACK_INITIATE, null, REASON_NATIVE_CRASH, null);
+        assertThat(mLogger).eventOccurred(ROLLBACK_BOOT_TRIGGERED, null, null, null);
+        assertThat(mLogger).eventOccurred(ROLLBACK_SUCCESS, null, null, null);
+    }
+
+    /**
+     * Tests rollbacks triggered by the native watchdog.
+     */
+    @Test
+    public void testNativeWatchdogTriggersRollbackForAll() throws Exception {
+        // This test requires committing multiple staged rollbacks
+        assumeTrue(isCheckpointSupported());
+
+        // Install 2 packages with rollback enabled.
+        run("testNativeWatchdogTriggersRollbackForAll_Phase1_Install");
+        getDevice().reboot();
+
+        // Verify that we have 2 rollbacks available
+        run("testNativeWatchdogTriggersRollbackForAll_Phase2_VerifyInstall");
+
+        // crash system_server enough times to trigger rollbacks
+        crashProcess("system_server", NATIVE_CRASHES_THRESHOLD);
+
+        // Rollback should be committed automatically now.
+        // Give time for rollback to be committed. This could take a while,
+        // because we need all of the following to happen:
+        // 1. system_server comes back up and boot completes.
+        // 2. Rollback health observer detects updatable crashing signal.
+        // 3. Staged rollback session becomes ready.
+        // 4. Device actually reboots.
+        // So we give a generous timeout here.
+        waitForDeviceNotAvailable(5, TimeUnit.MINUTES);
+        getDevice().waitForDeviceAvailable();
+
+        // verify all available rollbacks have been committed
+        run("testNativeWatchdogTriggersRollbackForAll_Phase3_VerifyRollback");
+
+        assertThat(mLogger).eventOccurred(ROLLBACK_INITIATE, null, REASON_NATIVE_CRASH, null);
+        assertThat(mLogger).eventOccurred(ROLLBACK_BOOT_TRIGGERED, null, null, null);
+        assertThat(mLogger).eventOccurred(ROLLBACK_SUCCESS, null, null, null);
+    }
+
     private List<String> getSnapshotDirectories(String baseDir) throws Exception {
         IFileEntry f = getDevice().getFileEntry(baseDir);
         if (f == null) {
@@ -396,5 +511,39 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     private void pushString(String contents, String path) throws Exception {
         assertWithMessage("Failed to push file to device, content=%s path=%s", contents, path)
                 .that(getDevice().pushString(contents, path)).isTrue();
+    }
+
+    private void waitForDeviceNotAvailable(long timeout, TimeUnit unit) {
+        assertWithMessage("waitForDeviceNotAvailable() timed out in %s %s", timeout, unit)
+                .that(getDevice().waitForDeviceNotAvailable(unit.toMillis(timeout))).isTrue();
+    }
+
+    private void startActivity(String packageName) throws Exception {
+        String cmd = "am start -S -a android.intent.action.MAIN "
+                + "-c android.intent.category.LAUNCHER " + packageName;
+        getDevice().executeShellCommand(cmd);
+    }
+
+    private void crashProcess(String processName, int numberOfCrashes) throws Exception {
+        String pid = "";
+        String lastPid = "invalid";
+        for (int i = 0; i < numberOfCrashes; ++i) {
+            // This condition makes sure before we kill the process, the process is running AND
+            // the last crash was finished.
+            while ("".equals(pid) || lastPid.equals(pid)) {
+                pid = getDevice().executeShellCommand("pidof " + processName);
+            }
+            getDevice().executeShellCommand("kill " + pid);
+            lastPid = pid;
+        }
+    }
+
+    private boolean isCheckpointSupported() throws Exception {
+        try {
+            run("isCheckpointSupported");
+            return true;
+        } catch (AssertionError ignore) {
+            return false;
+        }
     }
 }
