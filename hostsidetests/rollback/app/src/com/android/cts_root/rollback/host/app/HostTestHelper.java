@@ -22,6 +22,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.content.rollback.RollbackInfo;
 import android.content.rollback.RollbackManager;
@@ -138,7 +140,11 @@ public class HostTestHelper {
     @Test
     public void testExpireSession_Phase1_Install() throws Exception {
         Install.single(TestApp.A1).commit();
-        Install.single(TestApp.A2).setEnableRollback().setStaged().commit();
+        int sessionId = Install.single(TestApp.A2).setEnableRollback().setStaged().commit();
+
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        prefs.edit().putInt("sessionId", sessionId).commit();
     }
 
     @Test
@@ -152,6 +158,13 @@ public class HostTestHelper {
     public void testExpireSession_Phase3_VerifyRollback() throws Exception {
         RollbackInfo rollback = RollbackUtils.getAvailableRollback(TestApp.A);
         assertThat(rollback).isNotNull();
+
+        // Check the session is expired
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        int sessionId = prefs.getInt("sessionId", -1);
+        PackageInstaller.SessionInfo info = InstallUtils.getStagedSessionInfo(sessionId);
+        assertThat(info).isNull();
     }
 
     @Test
