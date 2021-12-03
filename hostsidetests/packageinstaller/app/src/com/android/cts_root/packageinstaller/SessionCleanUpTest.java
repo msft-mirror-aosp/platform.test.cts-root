@@ -18,11 +18,14 @@ package com.android.cts_root.packageinstaller;
 
 import static com.android.cts.install.lib.InstallUtils.getInstalledVersion;
 import static com.android.cts.install.lib.InstallUtils.openPackageInstallerSession;
+import static com.android.cts.install.lib.PackageInstallerSessionInfoSubject.assertThat;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageInstaller;
 
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -200,5 +203,65 @@ public class SessionCleanUpTest {
                 assertSessionNotExists(childId);
             }
         }
+    }
+
+    @Test
+    public void testSessionCleanUp_Single_Expire_Install() throws Exception {
+        int sessionId = Install.single(TestApp.A1).setStaged().commit();
+
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        prefs.edit().putInt("sessionId", sessionId).commit();
+    }
+
+    @Test
+    public void testSessionCleanUp_Single_Expire_VerifyInstall() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        int sessionId = prefs.getInt("sessionId", -1);
+        assertThat(InstallUtils.getStagedSessionInfo(sessionId)).isStagedSessionApplied();
+    }
+
+    @Test
+    public void testSessionCleanUp_Single_Expire_CleanUp() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        int sessionId = prefs.getInt("sessionId", -1);
+        assertSessionNotExists(sessionId);
+    }
+
+    @Test
+    public void testSessionCleanUp_Multi_Expire_Install() throws Exception {
+        int parentId = Install.multi(TestApp.A1, TestApp.B1).setStaged().commit();
+        int[] childIds;
+        try (PackageInstaller.Session parent = openPackageInstallerSession(parentId)) {
+            childIds = parent.getChildSessionIds();
+        }
+
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        prefs.edit().putInt("parentId", parentId).commit();
+        prefs.edit().putInt("childId1", childIds[0]).commit();
+        prefs.edit().putInt("childId2", childIds[1]).commit();
+    }
+
+    @Test
+    public void testSessionCleanUp_Multi_Expire_VerifyInstall() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        int parentId = prefs.getInt("parentId", -1);
+        assertThat(InstallUtils.getStagedSessionInfo(parentId)).isStagedSessionApplied();
+    }
+
+    @Test
+    public void testSessionCleanUp_Multi_Expire_CleanUp() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        int parentId = prefs.getInt("parentId", -1);
+        int childId1 = prefs.getInt("childId1", -1);
+        int childId2 = prefs.getInt("childId2", -1);
+        assertSessionNotExists(parentId);
+        assertSessionNotExists(childId1);
+        assertSessionNotExists(childId2);
     }
 }

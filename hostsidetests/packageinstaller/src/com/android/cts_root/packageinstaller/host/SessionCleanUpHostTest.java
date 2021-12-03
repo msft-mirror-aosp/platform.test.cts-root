@@ -18,6 +18,8 @@ package com.android.cts_root.packageinstaller.host;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.platform.test.annotations.LargeTest;
+
 import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
@@ -29,7 +31,10 @@ import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.junit.runners.model.Statement;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -49,8 +54,10 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
             base.evaluate();
             List<String> stagedAfter = getStagingDirectoriesForStagedSessions();
             List<String> nonStagedAfter = getStagingDirectoriesForNonStagedSessions();
-            assertThat(stagedAfter).isEqualTo(stagedBefore);
-            assertThat(nonStagedAfter).isEqualTo(nonStagedBefore);
+            // stagedAfter will be a subset of stagedBefore if all staging directories created
+            // during tests are correctly deleted when installation fails
+            assertThat(stagedBefore).containsAtLeastElementsIn(stagedAfter);
+            assertThat(nonStagedBefore).containsAtLeastElementsIn(nonStagedAfter);
         }
     };
 
@@ -132,6 +139,31 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
         run("testSessionCleanUp_Multi_NoPermission");
     }
 
+    /**
+     * Tests a single-package session is cleaned up when it expired.
+     */
+    @LargeTest
+    @Test
+    public void testSessionCleanUp_Single_Expire() throws Exception {
+        run("testSessionCleanUp_Single_Expire_Install");
+        getDevice().reboot();
+        run("testSessionCleanUp_Single_Expire_VerifyInstall");
+        expireSessions();
+        run("testSessionCleanUp_Single_Expire_CleanUp");
+    }
+
+    /**
+     * Tests a multi-package session is cleaned up when it expired.
+     */
+    @Test
+    public void testSessionCleanUp_Multi_Expire() throws Exception {
+        run("testSessionCleanUp_Multi_Expire_Install");
+        getDevice().reboot();
+        run("testSessionCleanUp_Multi_Expire_VerifyInstall");
+        expireSessions();
+        run("testSessionCleanUp_Multi_Expire_CleanUp");
+    }
+
     private List<String> getStagingDirectoriesForNonStagedSessions() throws Exception {
         return getStagingDirectories("/data/app", "vmdl\\d+.tmp");
     }
@@ -145,5 +177,23 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
                 .stream().filter(entry -> entry.getName().matches(pattern))
                 .map(entry -> entry.getName())
                 .collect(Collectors.toList());
+    }
+
+    private void expireSessions() throws Exception {
+        Instant t1 = Instant.ofEpochMilli(getDevice().getDeviceDate());
+        Instant t2 = t1.plusMillis(TimeUnit.DAYS.toMillis(10));
+        try {
+            // Advance system clock by 10 days to expire the staged session
+            getDevice().setDate(Date.from(t2));
+            getDevice().executeShellCommand("am broadcast -a android.intent.action.TIME_SET");
+            // Restart system server to run expiration
+            getDevice().executeShellCommand("stop");
+            getDevice().executeShellCommand("start");
+            getDevice().waitForDeviceAvailable();
+        } finally {
+            // Restore system clock
+            getDevice().setDate(Date.from(t1));
+            getDevice().executeShellCommand("am broadcast -a android.intent.action.TIME_SET");
+        }
     }
 }
