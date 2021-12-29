@@ -42,6 +42,10 @@ import java.util.stream.Collectors;
  */
 @RunWith(DeviceJUnit4ClassRunner.class)
 public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
+
+    // Expiry time for staged sessions that have not changed state in this time
+    private static final long MAX_TIME_SINCE_UPDATE_MILLIS = TimeUnit.DAYS.toMillis(21);
+
     /**
      * Checks staging directories are deleted when installation fails.
      */
@@ -181,9 +185,9 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
 
     private void expireSessions() throws Exception {
         Instant t1 = Instant.ofEpochMilli(getDevice().getDeviceDate());
-        Instant t2 = t1.plusMillis(TimeUnit.DAYS.toMillis(10));
+        Instant t2 = t1.plusMillis(MAX_TIME_SINCE_UPDATE_MILLIS);
         try {
-            // Advance system clock by 10 days to expire the staged session
+            // Advance system clock by MAX_TIME_SINCE_UPDATE_MILLIS to expire the staged session
             getDevice().setDate(Date.from(t2));
             getDevice().executeShellCommand("am broadcast -a android.intent.action.TIME_SET");
             // Restart system server to run expiration
