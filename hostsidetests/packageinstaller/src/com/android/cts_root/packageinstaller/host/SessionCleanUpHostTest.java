@@ -164,6 +164,27 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
         run("testSessionCleanUp_Multi_Expire_CleanUp");
     }
 
+    /**
+     * Tests sessions are cleaned up on low storage.
+     */
+    @Test
+    public void testSessionCleanUp_LowStorage() throws Exception {
+        Instant t1 = Instant.ofEpochMilli(getDevice().getDeviceDate());
+        Instant t2 = t1.plusMillis(TimeUnit.DAYS.toMillis(1));
+        try {
+            run("testSessionCleanUp_LowStorage_Install");
+            // Advance system clock to have old sessions
+            getDevice().setDate(Date.from(t2));
+            getDevice().executeShellCommand("am broadcast -a android.intent.action.TIME_SET");
+            // Run PackageManager#freeStorage to abandon old sessions
+            run("testSessionCleanUp_LowStorage_CleanUp");
+        } finally {
+            // Restore system clock
+            getDevice().setDate(Date.from(t1));
+            getDevice().executeShellCommand("am broadcast -a android.intent.action.TIME_SET");
+        }
+    }
+
     private List<String> getStagingDirectoriesForNonStagedSessions() throws Exception {
         return getStagingDirectories("/data/app", "vmdl\\d+.tmp");
     }
