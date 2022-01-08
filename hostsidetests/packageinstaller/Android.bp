@@ -30,6 +30,5 @@ android_test_helper_app {
     srcs:  ["app/src/**/*.java"],
     static_libs: ["androidx.test.rules", "cts-install-lib"],
     manifest : "app/AndroidManifest.xml",
-    sdk_version: "test_current",
     test_suites: ["device-tests"],
 }
