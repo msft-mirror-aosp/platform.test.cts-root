@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.platform.test.annotations.LargeTest;
 
+import com.android.ddmlib.Log;
 import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
@@ -42,7 +43,7 @@ import java.util.stream.Collectors;
  */
 @RunWith(DeviceJUnit4ClassRunner.class)
 public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
-
+    private static final String TAG = "SessionCleanUpHostTest";
     // Expiry time for staged sessions that have not changed state in this time
     private static final long MAX_TIME_SINCE_UPDATE_MILLIS = TimeUnit.DAYS.toMillis(21);
 
@@ -55,9 +56,16 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
         public void evaluate() throws Throwable {
             List<String> stagedBefore = getStagingDirectoriesForStagedSessions();
             List<String> nonStagedBefore = getStagingDirectoriesForNonStagedSessions();
+            Log.d(TAG, "stagedBefore=" + stagedBefore);
+            Log.d(TAG, "nonStagedBefore=" + nonStagedBefore);
+
             base.evaluate();
+
             List<String> stagedAfter = getStagingDirectoriesForStagedSessions();
             List<String> nonStagedAfter = getStagingDirectoriesForNonStagedSessions();
+            Log.d(TAG, "stagedAfter=" + stagedAfter);
+            Log.d(TAG, "nonStagedAfter=" + nonStagedAfter);
+
             // stagedAfter will be a subset of stagedBefore if all staging directories created
             // during tests are correctly deleted when installation fails
             assertThat(stagedBefore).containsAtLeastElementsIn(stagedAfter);
