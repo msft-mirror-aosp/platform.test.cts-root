@@ -72,6 +72,9 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
     private static final String TEST_FILENAME_4 = "one_more.test";
     private static final String TEST_STRING_4 = "once more unto the test";
 
+    // Expiry time for staged sessions that have not changed state in this time
+    private static final long MAX_TIME_SINCE_UPDATE_MILLIS = TimeUnit.DAYS.toMillis(21);
+
     private final InstallUtilsHost mHostUtils = new InstallUtilsHost(this);
     private WatchdogEventLogger mLogger = new WatchdogEventLogger();
 
@@ -385,9 +388,9 @@ public class RollbackManagerHostTest extends BaseHostJUnit4Test {
         getDevice().reboot();
         run("testExpireSession_Phase2_VerifyInstall");
 
-        // Advance system clock by 7 days to expire the staged session
+        // Advance system clock by MAX_TIME_SINCE_UPDATE_MILLIS to expire the staged session
         Instant t1 = Instant.ofEpochMilli(getDevice().getDeviceDate());
-        Instant t2 = t1.plusMillis(TimeUnit.DAYS.toMillis(7));
+        Instant t2 = t1.plusMillis(MAX_TIME_SINCE_UPDATE_MILLIS);
 
         try {
             getDevice().setDate(Date.from(t2));
