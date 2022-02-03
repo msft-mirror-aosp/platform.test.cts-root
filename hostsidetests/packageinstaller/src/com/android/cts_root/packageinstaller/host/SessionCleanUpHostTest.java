@@ -26,6 +26,7 @@ import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -155,6 +156,7 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
      * Tests a single-package session is cleaned up when it expired.
      */
     @LargeTest
+    @Ignore("b/217132609")
     @Test
     public void testSessionCleanUp_Single_Expire() throws Exception {
         run("testSessionCleanUp_Single_Expire_Install");
@@ -167,6 +169,7 @@ public class SessionCleanUpHostTest extends BaseHostJUnit4Test {
     /**
      * Tests a multi-package session is cleaned up when it expired.
      */
+    @Ignore("b/217132609")
     @Test
     public void testSessionCleanUp_Multi_Expire() throws Exception {
         run("testSessionCleanUp_Multi_Expire_Install");
