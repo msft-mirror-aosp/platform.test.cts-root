@@ -28,10 +28,16 @@
         <option name="run-command" value="pm uninstall com.android.cts.install.lib.testapp.A" />
         <option name="run-command" value="pm uninstall com.android.cts.install.lib.testapp.B" />
         <option name="run-command" value="pm uninstall com.android.cts.install.lib.testapp.C" />
+        <option name="run-command" value="setprop persist.log.tag.PackageInstaller DEBUG" />
         <option name="teardown-command" value="pm uninstall com.android.cts.install.lib.testapp.A" />
         <option name="teardown-command" value="pm uninstall com.android.cts.install.lib.testapp.B" />
         <option name="teardown-command" value="pm uninstall com.android.cts.install.lib.testapp.C" />
+        <option name="run-command" value="svc wifi disable" />
+        <option name="run-command" value="svc data disable" />
+        <option name="teardown-command" value="svc wifi enable" />
+        <option name="teardown-command" value="svc data enable" />
     </target_preparer>
+    <target_preparer class="com.android.tradefed.targetprep.RebootTargetPreparer" />
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer" />
     <test class="com.android.tradefed.testtype.HostTest" >
         <option name="class" value="com.android.cts_root.packageinstaller.host.SessionCleanUpHostTest" />

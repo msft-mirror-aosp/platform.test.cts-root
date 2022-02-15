@@ -57,6 +57,7 @@ public class SessionCleanUpTest {
     public void setUp() {
         InstrumentationRegistry.getInstrumentation().getUiAutomation()
                 .adoptShellPermissionIdentity(
+                        Manifest.permission.CLEAR_APP_CACHE,
                         Manifest.permission.INSTALL_PACKAGES,
                         Manifest.permission.DELETE_PACKAGES);
     }
@@ -256,6 +257,35 @@ public class SessionCleanUpTest {
     @Test
     public void testSessionCleanUp_Multi_Expire_CleanUp() throws Exception {
         Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        int parentId = prefs.getInt("parentId", -1);
+        int childId1 = prefs.getInt("childId1", -1);
+        int childId2 = prefs.getInt("childId2", -1);
+        assertSessionNotExists(parentId);
+        assertSessionNotExists(childId1);
+        assertSessionNotExists(childId2);
+    }
+
+    @Test
+    public void testSessionCleanUp_LowStorage_Install() throws Exception {
+        int parentId = Install.multi(TestApp.A1, TestApp.B1).createSession();
+        int[] childIds;
+        try (PackageInstaller.Session parent = openPackageInstallerSession(parentId)) {
+            childIds = parent.getChildSessionIds();
+        }
+
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        SharedPreferences prefs = context.getSharedPreferences("test", 0);
+        prefs.edit().putInt("parentId", parentId).commit();
+        prefs.edit().putInt("childId1", childIds[0]).commit();
+        prefs.edit().putInt("childId2", childIds[1]).commit();
+    }
+
+    @Test
+    public void testSessionCleanUp_LowStorage_CleanUp() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getContext();
+        // Pass Long.MAX_VALUE to ensure old sessions will be abandoned
+        context.getPackageManager().freeStorage(Long.MAX_VALUE, null);
         SharedPreferences prefs = context.getSharedPreferences("test", 0);
         int parentId = prefs.getInt("parentId", -1);
         int childId1 = prefs.getInt("childId1", -1);
