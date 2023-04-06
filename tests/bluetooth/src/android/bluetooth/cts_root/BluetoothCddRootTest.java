@@ -35,6 +35,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.compatibility.common.util.CddTest;
 import com.android.helpers.StatsdHelper;
 import com.android.os.nano.AtomsProto;
 import com.android.os.nano.StatsLog;
@@ -96,6 +97,7 @@ public class BluetoothCddRootTest {
         TestUtils.dropPermissionAsShellUid();
     }
 
+    @CddTest(requirements = {"7.4.3/C-1-1"})
     @Test
     public void test_C_1_1_VrHighPerformance() {
         Assume.assumeTrue(mContext.getPackageManager().hasSystemFeature(
@@ -107,6 +109,7 @@ public class BluetoothCddRootTest {
         // TODO: Enforce LE data length extension
     }
 
+    @CddTest(requirements = {"7.4.3/C-12-1"})
     @Test
     public void test_C_12_1_Bluetooth5Requirements() {
         Assume.assumeTrue(mHasBluetooth);
