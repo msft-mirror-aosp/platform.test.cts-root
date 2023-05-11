@@ -25,6 +25,7 @@ import static android.Manifest.permission.PACKAGE_USAGE_STATS;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.cts.BTAdapterUtils;
 import android.bluetooth.cts.TestUtils;
 import android.content.Context;
@@ -35,6 +36,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.compatibility.common.util.CddTest;
 import com.android.helpers.StatsdHelper;
 import com.android.os.nano.AtomsProto;
 import com.android.os.nano.StatsLog;
@@ -46,6 +48,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Test cases that can only run in rooted environments
@@ -53,6 +56,7 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class BluetoothCddRootTest {
+    private static final String TAG = BluetoothCddRootTest.class.getSimpleName();
     private static final int BLUETOOTH_CORE_SPECIFICATION_4_2 = 0x08;
     private static final int BLUETOOTH_CORE_SPECIFICATION_5_0 = 0x09;
     private static final int BLUETOOTH_LOCAL_VERSION_REPORTED_ATOM_ID = 530;
@@ -69,6 +73,8 @@ public class BluetoothCddRootTest {
         mHasBluetooth = TestUtils.hasBluetooth();
         Assume.assumeTrue(mHasBluetooth);
         TestUtils.adoptPermissionAsShellUid(BLUETOOTH_CONNECT,
+                BLUETOOTH_PRIVILEGED, BLUETOOTH_SCAN, DUMP, PACKAGE_USAGE_STATS);
+        assertThat(TestUtils.getAdoptedShellPermissions()).containsAtLeast(BLUETOOTH_CONNECT,
                 BLUETOOTH_PRIVILEGED, BLUETOOTH_SCAN, DUMP, PACKAGE_USAGE_STATS);
         mAdapter = TestUtils.getBluetoothAdapterOrDie();
         if (mAdapter.isEnabled()) {
@@ -96,6 +102,7 @@ public class BluetoothCddRootTest {
         TestUtils.dropPermissionAsShellUid();
     }
 
+    @CddTest(requirements = {"7.4.3/C-1-1"})
     @Test
     public void test_C_1_1_VrHighPerformance() {
         Assume.assumeTrue(mContext.getPackageManager().hasSystemFeature(
@@ -107,6 +114,28 @@ public class BluetoothCddRootTest {
         // TODO: Enforce LE data length extension
     }
 
+    @CddTest(requirements = {"7.4.3/C-3-6"})
+    @Test
+    public void test_C_5_1_AshaRequirements() {
+        Assume.assumeTrue(mHasBluetooth);
+        Assume.assumeTrue(TestUtils.isBleSupported(mContext));
+        AtomsProto.BluetoothLocalVersionsReported version = getBluetoothVersion();
+        Assume.assumeTrue(version.hciVersion >= BLUETOOTH_CORE_SPECIFICATION_5_0);
+        assertThat(BTAdapterUtils.enableAdapter(mAdapter, mContext)).isTrue();
+        assertThat(mAdapter.getSupportedProfiles()).contains(BluetoothProfile.HEARING_AID);
+        TestUtils.BluetoothCtsServiceConnector connector =
+                new TestUtils.BluetoothCtsServiceConnector(TAG,
+                        BluetoothProfile.HEARING_AID, mAdapter, mContext);
+        try {
+            assertThat(connector.openProfileProxyAsync()).isTrue();
+            assertThat(connector.waitForProfileConnect()).isTrue();
+            assertThat(connector.getProfileProxy()).isNotNull();
+        } finally {
+            connector.closeProfileProxy();
+        }
+    }
+
+    @CddTest(requirements = {"7.4.3/C-12-1"})
     @Test
     public void test_C_12_1_Bluetooth5Requirements() {
         Assume.assumeTrue(mHasBluetooth);
@@ -132,6 +161,8 @@ public class BluetoothCddRootTest {
      * @return Bluetooth version proto
      */
     private AtomsProto.BluetoothLocalVersionsReported getBluetoothVersion() {
+        Set<String> permissionsAdopted = TestUtils.getAdoptedShellPermissions();
+        String[] permissionArray = permissionsAdopted.toArray(String[]::new);
         if (mAdapter.isEnabled()) {
             assertThat(BTAdapterUtils.disableAdapter(mAdapter, mContext)).isTrue();
             try {
@@ -155,7 +186,7 @@ public class BluetoothCddRootTest {
             if (atom == null) {
                 continue;
             }
-            Log.i("BluetoothCddTest", "[" + i + "] HCI version is " + atom.hciVersion
+            Log.i("BluetoothCddRootTest", "[" + i + "] HCI version is " + atom.hciVersion
                     + ", LMP version is " + atom.lmpVersion);
             assertThat(atom.lmpManufacturerName).isGreaterThan(0);
             assertThat(atom.lmpVersion).isGreaterThan(0);
@@ -169,6 +200,8 @@ public class BluetoothCddRootTest {
             }
             i++;
         }
+        TestUtils.dropPermissionAsShellUid();
+        TestUtils.adoptPermissionAsShellUid(permissionArray);
         return summaryAtom;
     }
 }
