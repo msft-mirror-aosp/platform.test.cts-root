@@ -114,11 +114,18 @@ public class BluetoothCddRootTest {
         // TODO: Enforce LE data length extension
     }
 
-    @CddTest(requirements = {"7.4.3/C-3-6"})
+    @CddTest(requirements = {"7.4.3/H-1-1"})
     @Test
-    public void test_C_5_1_AshaRequirements() {
+    public void test_H_1_1_AshaRequirements() {
         Assume.assumeTrue(mHasBluetooth);
-        Assume.assumeTrue(TestUtils.isBleSupported(mContext));
+        Assume.assumeTrue("Skip 7.4.3/H-1-1 test for non-BLE devices",
+                TestUtils.isBleSupported(mContext));
+        Assume.assumeFalse("Skip 7.4.3/H-1-1 test for automotive devices",
+                TestUtils.isAutomotive(mContext));
+        Assume.assumeFalse("Skip 7.4.3/H-1-1 test for watch devices",
+                TestUtils.isWatch(mContext));
+        Assume.assumeFalse("Skip 7.4.3/H-1-1 test for TV devices",
+                TestUtils.isTv(mContext));
         AtomsProto.BluetoothLocalVersionsReported version = getBluetoothVersion();
         Assume.assumeTrue(version.hciVersion >= BLUETOOTH_CORE_SPECIFICATION_5_0);
         assertThat(BTAdapterUtils.enableAdapter(mAdapter, mContext)).isTrue();
