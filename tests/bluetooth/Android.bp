@@ -1,4 +1,4 @@
-// Copyright (C) 2021 The Android Open Source Project
+// Copyright (C) 2023 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,22 +16,29 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-java_test_host {
-    name: "CtsRootPackageInstallerHostTestCases",
+android_test {
+    name: "CtsRootBluetoothTestCases",
     defaults: ["cts_defaults"],
-    srcs: ["src/**/*.java"],
-    libs: ["cts-tradefed", "tradefed", "truth-prebuilt"],
-    data: [
-        ":CtsRootPackageInstallerTestCases",
-        ":CtsRootRollbackManagerHostTestHelperApp",
+    static_libs: [
+        "ctstestrunner-axt",
+        "bluetooth-test-util-lib",
+        "compatibility-device-util-axt",
+        "PlatformProperties",
+        "statsd-helper",
     ],
-    test_suites: ["cts_root", "general-tests"],
-}
-
-android_test_helper_app {
-    name: "CtsRootPackageInstallerTestCases",
-    srcs:  ["app/src/**/*.java"],
-    static_libs: ["androidx.test.rules", "cts-install-lib"],
-    manifest : "app/AndroidManifest.xml",
-    test_suites: ["device-tests"],
+    libs: [
+        "android.test.runner",
+        "android.test.base",
+        "statsdprotonano",
+    ],
+    srcs: ["src/**/*.java"],
+    // Allows access to system apis
+    platform_apis: true,
+    // Tag this module as a cts test artifact
+    test_suites: [
+        "cts_root",
+        "general-tests",
+        "mts-bluetooth",
+    ],
+    min_sdk_version: "UpsideDownCake",
 }
