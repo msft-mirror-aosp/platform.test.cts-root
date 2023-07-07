@@ -1,4 +1,4 @@
-// Copyright (C) 2021 The Android Open Source Project
+// Copyright (C) 2023 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,22 +16,29 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-java_test_host {
-    name: "CtsRootPackageInstallerHostTestCases",
+android_test {
+    name: "CtsRootBugreportTestCases",
     defaults: ["cts_defaults"],
-    srcs: ["src/**/*.java"],
-    libs: ["cts-tradefed", "tradefed", "truth-prebuilt"],
-    data: [
-        ":CtsRootPackageInstallerTestCases",
-        ":CtsRootRollbackManagerHostTestHelperApp",
+    static_libs: [
+        "androidx.test.rules",
+        "androidx.test.uiautomator_uiautomator",
+        "compatibility-device-util-axt",
+        "truth-prebuilt",
     ],
-    test_suites: ["cts_root", "general-tests"],
+    libs: [
+        "android.test.runner",
+        "android.test.base",
+    ],
+    data: [":ctsroot-bugreport-artifacts"],
+    srcs: ["src/**/*.java"],
+    sdk_version: "test_current",
+    test_suites: [
+        "cts_root",
+        "general-tests",
+    ],
 }
 
-android_test_helper_app {
-    name: "CtsRootPackageInstallerTestCases",
-    srcs:  ["app/src/**/*.java"],
-    static_libs: ["androidx.test.rules", "cts-install-lib"],
-    manifest : "app/AndroidManifest.xml",
-    test_suites: ["device-tests"],
+filegroup {
+  name: "ctsroot-bugreport-artifacts",
+  srcs: ["config/test-sysconfig.xml"],
 }
