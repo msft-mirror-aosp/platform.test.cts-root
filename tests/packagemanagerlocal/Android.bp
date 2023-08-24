@@ -24,7 +24,7 @@ android_test {
         "androidx.test.rules",
         "platform-test-annotations",
         "services.core",
-        "truth-prebuilt",
+        "truth",
     ],
     libs: [
         "android.test.runner",
