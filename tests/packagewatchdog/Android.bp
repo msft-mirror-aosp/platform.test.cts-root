@@ -23,7 +23,7 @@ android_test {
         "androidx.test.core",
         "androidx.test.rules",
         "services.core",
-        "truth-prebuilt",
+        "truth",
         "platform-test-annotations",
     ],
     libs: [
