@@ -20,17 +20,29 @@ java_test_host {
     name: "CtsRootRollbackManagerHostTestCases",
     defaults: ["cts_defaults"],
     srcs: ["src/**/*.java"],
-    libs: ["cts-tradefed", "cts-shim-host-lib", "tradefed", "truth-prebuilt"],
+    libs: [
+        "cts-tradefed",
+        "cts-shim-host-lib",
+        "tradefed",
+        "truth",
+    ],
     static_libs: ["cts-install-lib-host"],
     data: [":CtsRootRollbackManagerHostTestHelperApp"],
-    test_suites: ["cts_root", "general-tests"],
+    test_suites: [
+        "cts_root",
+        "general-tests",
+    ],
 }
 
 android_test_helper_app {
     name: "CtsRootRollbackManagerHostTestHelperApp",
-    srcs:  ["app/src/**/*.java"],
-    static_libs: ["androidx.test.rules", "cts-rollback-lib", "cts-install-lib"],
-    manifest : "app/AndroidManifest.xml",
+    srcs: ["app/src/**/*.java"],
+    static_libs: [
+        "androidx.test.rules",
+        "cts-rollback-lib",
+        "cts-install-lib",
+    ],
+    manifest: "app/AndroidManifest.xml",
     sdk_version: "test_current",
     test_suites: ["device-tests"],
 }
