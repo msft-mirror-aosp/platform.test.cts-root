@@ -30,7 +30,7 @@ android_test {
         "androidx.test.rules",
         "compatibility-device-util-axt",
         "services.core",
-        "truth-prebuilt",
+        "truth",
         "platform-test-annotations",
     ],
     libs: [
