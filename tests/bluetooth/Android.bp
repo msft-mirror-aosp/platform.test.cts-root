@@ -39,6 +39,7 @@ android_test {
         "cts_root",
         "general-tests",
         "mts-bluetooth",
+        "mcts-bluetooth",
     ],
     min_sdk_version: "UpsideDownCake",
 }
