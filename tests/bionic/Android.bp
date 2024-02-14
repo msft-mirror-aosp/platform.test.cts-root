@@ -6,5 +6,9 @@ cc_test {
     name: "CtsBionicRootTestCases",
 
     defaults: ["cts_bionic_defaults"],
+
+    test_suites: [
+        "cts_root",
+    ],
 }
 
