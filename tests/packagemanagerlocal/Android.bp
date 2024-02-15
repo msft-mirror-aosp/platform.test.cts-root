@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package {
+    default_team: "trendy_team_framework_android_packages",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -24,7 +25,7 @@ android_test {
         "androidx.test.rules",
         "platform-test-annotations",
         "services.core",
-        "truth-prebuilt",
+        "truth",
     ],
     libs: [
         "android.test.runner",
