@@ -38,7 +38,6 @@ import com.android.server.LocalManagerRegistry;
 import com.android.server.permission.PermissionManagerLocal;
 import com.android.server.pm.PackageManagerLocal;
 import com.android.server.pm.pkg.PackageState;
-import com.android.xts.root.annotations.RequireAdbRoot;
 
 import org.junit.After;
 import org.junit.Before;
@@ -49,7 +48,6 @@ import org.junit.runner.RunWith;
 
 import java.util.Map;
 
-@RequireAdbRoot
 @RunWith(AndroidJUnit4.class)
 public final class SignaturePermissionAllowlistTest {
     private static final String NORMAL_APP_APK_PATH = "/data/local/tmp/cts-root-permission/"
