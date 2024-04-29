@@ -83,7 +83,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     public void testRetrieveBugreportConsentGranted() throws Exception {
-        File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
         File startBugreportFile = createTempFile("startbugreport", ".zip");
         CountDownLatch latch = new CountDownLatch(1);
         BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
@@ -99,8 +98,6 @@ public class BugreportManagerTest {
         String bugreportFileLocation = callback.getBugreportFile();
         waitForDumpstateServiceToStop();
 
-
-
         // Trying to retrieve an unknown bugreport should fail
         latch = new CountDownLatch(1);
         callback = new BugreportCallbackImpl(latch);
@@ -112,6 +109,7 @@ public class BugreportManagerTest {
         assertThat(callback.getErrorCode()).isEqualTo(
                 BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
 
+        File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
         // A bugreport was previously generated for this caller. When the consent dialog is invoked
         // and accepted, the bugreport files should be passed to the calling package.
         ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
@@ -128,8 +126,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     public void testRetrieveBugreportConsentDenied() throws Exception {
-        File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
-
         // User denies consent, therefore no data should be passed back to the bugreport file.
         CountDownLatch latch = new CountDownLatch(1);
         BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
@@ -143,6 +139,7 @@ public class BugreportManagerTest {
         waitForDumpstateServiceToStop();
 
         latch = new CountDownLatch(1);
+        File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
         ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
         assertThat(bugreportFd).isNotNull();
         mBugreportManager.retrieveBugreport(
