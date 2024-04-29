@@ -16,17 +16,26 @@
 
 package android.bugreport.cts_root;
 
+import static android.app.admin.flags.Flags.FLAG_ONBOARDING_BUGREPORT_STORAGE_BUG_FIX;
+
 import static com.android.compatibility.common.util.SystemUtil.runShellCommand;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.fail;
 
+import android.app.AlarmManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.BugreportManager;
 import android.os.BugreportManager.BugreportCallback;
 import android.os.BugreportParams;
 import android.os.ParcelFileDescriptor;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.annotation.NonNull;
 import androidx.test.InstrumentationRegistry;
@@ -38,6 +47,8 @@ import androidx.test.uiautomator.UiDevice;
 import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
+import com.android.compatibility.common.util.SystemUtil;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -47,6 +58,8 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -65,6 +78,15 @@ public class BugreportManagerTest {
     public TestName name = new TestName();
 
     private static final long UIAUTOMATOR_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
+
+    private static final long BUGREPORT_TIMEOUT_MS = TimeUnit.MINUTES.toMillis(4);
+    private static final int MAX_ALLOWED_BUGREPROTS = 8;
+    private static final String INTENT_BUGREPORT_FINISHED =
+            "com.android.internal.intent.action.BUGREPORT_FINISHED";
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
 
     @Before
     public void setup() {
@@ -165,6 +187,124 @@ public class BugreportManagerTest {
         latch.await(1, TimeUnit.MINUTES);
         assertThat(callback.getErrorCode()).isEqualTo(
                 BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
+    }
+
+    @LargeTest
+    @Test
+    @RequiresFlagsEnabled(FLAG_ONBOARDING_BUGREPORT_STORAGE_BUG_FIX)
+    public void testBugreportsLimitReached() throws Exception {
+        // Disable auto time as tests might fail if the system restores time while they are running
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            List<File> bugreportFiles = new ArrayList<>();
+            List<String> bugreportFileLocations = new ArrayList<>();
+            CountDownLatch latch = new CountDownLatch(1);
+
+            for (int i = 0; i < MAX_ALLOWED_BUGREPROTS + 1; i++) {
+                File bugreportFile = createTempFile(
+                        "bugreport_" + name.getMethodName() + "_" + i, ".zip");
+                bugreportFiles.add(bugreportFile);
+                File startBugreportFile = createTempFile("startbugreport", ".zip");
+
+                latch = new CountDownLatch(1);
+                BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
+
+                mBugreportManager.startBugreport(parcelFd(startBugreportFile), null,
+                        new BugreportParams(
+                                BugreportParams.BUGREPORT_MODE_ONBOARDING,
+                                BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
+                        mContext.getMainExecutor(), callback);
+
+                latch.await(BUGREPORT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                assertThat(callback.isSuccess()).isTrue();
+                bugreportFileLocations.add(callback.getBugreportFile());
+                waitForDumpstateServiceToStop();
+            }
+
+            final long newTime = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10);
+            SystemUtil.runWithShellPermissionIdentity(() ->
+                    mContext.getSystemService(AlarmManager.class).setTime(newTime));
+
+            // Trigger a shell bugreport to trigger cleanup logic
+            triggerShellBugreport(BugreportParams.BUGREPORT_MODE_ONBOARDING);
+
+            // The retrieved first bugreport file should be empty.
+            latch = new CountDownLatch(1);
+            BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
+            mBugreportManager.retrieveBugreport(
+                    bugreportFileLocations.getFirst(), parcelFd(bugreportFiles.getFirst()),
+                    mContext.getMainExecutor(), callback);
+            shareConsentDialog(ConsentReply.ALLOW);
+            assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
+            assertThat(bugreportFiles.getFirst().length()).isEqualTo(0);
+            waitForDumpstateServiceToStop();
+
+            // The retrieved last bugreport file should not be empty.
+            latch = new CountDownLatch(1);
+            callback = new BugreportCallbackImpl(latch);
+            mBugreportManager.retrieveBugreport(
+                    bugreportFileLocations.getLast(), parcelFd(bugreportFiles.getLast()),
+                    mContext.getMainExecutor(), callback);
+            shareConsentDialog(ConsentReply.ALLOW);
+            assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
+            assertThat(bugreportFiles.getLast().length()).isGreaterThan(0);
+            waitForDumpstateServiceToStop();
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
+    }
+
+    private void triggerShellBugreport(int type) throws Exception {
+        BugreportBroadcastReceiver br = new BugreportBroadcastReceiver();
+        final IntentFilter intentFilter = new IntentFilter(INTENT_BUGREPORT_FINISHED);
+        mContext.registerReceiver(br, intentFilter, Context.RECEIVER_EXPORTED);
+        final BugreportParams params = new BugreportParams(type);
+        mBugreportManager.requestBugreport(params, "" /* shareTitle */, "" /* shareDescription */);
+
+        try {
+            br.waitForBugreportFinished();
+        } finally {
+            // The latch may fail for a number of reasons but we still need to unregister the
+            // BroadcastReceiver.
+            mContext.unregisterReceiver(br);
+        }
+
+        Intent response = br.getBugreportFinishedIntent();
+        assertThat(response.getAction()).isEqualTo(intentFilter.getAction(0));
+        waitForDumpstateServiceToStop();
+    }
+
+    private class BugreportBroadcastReceiver extends BroadcastReceiver {
+        Intent bugreportFinishedIntent = null;
+        final CountDownLatch latch;
+
+        BugreportBroadcastReceiver() {
+            latch = new CountDownLatch(1);
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            setBugreportFinishedIntent(intent);
+            latch.countDown();
+        }
+
+        private void setBugreportFinishedIntent(Intent intent) {
+            bugreportFinishedIntent = intent;
+        }
+
+        public Intent getBugreportFinishedIntent() {
+            return bugreportFinishedIntent;
+        }
+
+        public void waitForBugreportFinished() throws Exception {
+            if (!latch.await(BUGREPORT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                throw new Exception("Failed to receive BUGREPORT_FINISHED in "
+                        + BUGREPORT_TIMEOUT_MS + " ms.");
+            }
+        }
     }
 
     private ParcelFileDescriptor parcelFd(File file) throws Exception {
