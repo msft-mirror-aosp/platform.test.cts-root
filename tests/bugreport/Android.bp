@@ -28,6 +28,7 @@ android_test {
     libs: [
         "android.test.runner",
         "android.test.base",
+        "device_policy_aconfig_flags_lib",
     ],
     data: [":ctsroot-bugreport-artifacts"],
     srcs: ["src/**/*.java"],
