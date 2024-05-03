@@ -161,6 +161,7 @@ public class BugreportManagerTest {
         waitForDumpstateServiceToStop();
 
         latch = new CountDownLatch(1);
+        callback = new BugreportCallbackImpl(latch);
         File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
         ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
         assertThat(bugreportFd).isNotNull();
