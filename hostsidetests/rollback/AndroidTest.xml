@@ -24,6 +24,10 @@
         <option name="test-file-name" value="CtsRootRollbackManagerHostTestHelperApp.apk" />
     </target_preparer>
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer" />
+    <target_preparer class="com.android.tradefed.targetprep.DeviceSetup">
+        <option name="auto-update-time" value="OFF"/>
+        <option name="auto-update-timezone" value="OFF"/>
+    </target_preparer>
     <test class="com.android.tradefed.testtype.HostTest" >
         <option name="class" value="com.android.cts_root.rollback.host.RollbackManagerHostTest" />
     </test>
