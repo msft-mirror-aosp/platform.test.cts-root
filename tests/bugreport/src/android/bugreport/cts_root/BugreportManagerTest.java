@@ -17,6 +17,7 @@
 package android.bugreport.cts_root;
 
 import static android.app.admin.flags.Flags.FLAG_ONBOARDING_BUGREPORT_STORAGE_BUG_FIX;
+import static android.app.admin.flags.Flags.FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS;
 
 import static com.android.compatibility.common.util.SystemUtil.runShellCommand;
 
@@ -105,86 +106,104 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     public void testRetrieveBugreportConsentGranted() throws Exception {
-        File startBugreportFile = createTempFile("startbugreport", ".zip");
-        CountDownLatch latch = new CountDownLatch(1);
-        BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
-        mBugreportManager.startBugreport(parcelFd(startBugreportFile), null,
-                new BugreportParams(
-                        BugreportParams.BUGREPORT_MODE_INTERACTIVE,
-                        BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
-                mContext.getMainExecutor(), callback);
-        latch.await(4, TimeUnit.MINUTES);
-        assertThat(callback.isSuccess()).isTrue();
-        // No data should be passed to the FD used to call startBugreport.
-        assertThat(startBugreportFile.length()).isEqualTo(0);
-        String bugreportFileLocation = callback.getBugreportFile();
-        waitForDumpstateServiceToStop();
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            ensureNotConsentlessReport();
+            File startBugreportFile = createTempFile("startbugreport", ".zip");
+            CountDownLatch latch = new CountDownLatch(1);
+            BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
+            mBugreportManager.startBugreport(parcelFd(startBugreportFile), null,
+                    new BugreportParams(
+                            BugreportParams.BUGREPORT_MODE_INTERACTIVE,
+                            BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
+                    mContext.getMainExecutor(), callback);
+            latch.await(4, TimeUnit.MINUTES);
+            assertThat(callback.isSuccess()).isTrue();
+            // No data should be passed to the FD used to call startBugreport.
+            assertThat(startBugreportFile.length()).isEqualTo(0);
+            String bugreportFileLocation = callback.getBugreportFile();
+            waitForDumpstateServiceToStop();
 
-        // Trying to retrieve an unknown bugreport should fail
-        latch = new CountDownLatch(1);
-        callback = new BugreportCallbackImpl(latch);
-        File bugreportFile2 = createTempFile("bugreport2_" + name.getMethodName(), ".zip");
-        mBugreportManager.retrieveBugreport(
-                "unknown/file.zip", parcelFd(bugreportFile2),
-                mContext.getMainExecutor(), callback);
-        assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
-        assertThat(callback.getErrorCode()).isEqualTo(
-                BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
+            // Trying to retrieve an unknown bugreport should fail
+            latch = new CountDownLatch(1);
+            callback = new BugreportCallbackImpl(latch);
+            File bugreportFile2 = createTempFile("bugreport2_" + name.getMethodName(), ".zip");
+            mBugreportManager.retrieveBugreport(
+                    "unknown/file.zip", parcelFd(bugreportFile2),
+                    mContext.getMainExecutor(), callback);
+            assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(callback.getErrorCode()).isEqualTo(
+                    BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
 
-        File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
-        // A bugreport was previously generated for this caller. When the consent dialog is invoked
-        // and accepted, the bugreport files should be passed to the calling package.
-        ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
-        assertThat(bugreportFd).isNotNull();
-        latch = new CountDownLatch(1);
-        mBugreportManager.retrieveBugreport(bugreportFileLocation, bugreportFd,
-                mContext.getMainExecutor(), new BugreportCallbackImpl(latch));
-        shareConsentDialog(ConsentReply.ALLOW);
-        assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
-        assertThat(bugreportFile.length()).isGreaterThan(0);
+            File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
+            // A bugreport was previously generated for this caller. When the consent dialog is invoked
+            // and accepted, the bugreport files should be passed to the calling package.
+            ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
+            assertThat(bugreportFd).isNotNull();
+            latch = new CountDownLatch(1);
+            mBugreportManager.retrieveBugreport(bugreportFileLocation, bugreportFd,
+                    mContext.getMainExecutor(), new BugreportCallbackImpl(latch));
+            shareConsentDialog(ConsentReply.ALLOW);
+            assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
+            assertThat(bugreportFile.length()).isGreaterThan(0);
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
     }
 
 
     @LargeTest
     @Test
     public void testRetrieveBugreportConsentDenied() throws Exception {
-        // User denies consent, therefore no data should be passed back to the bugreport file.
-        CountDownLatch latch = new CountDownLatch(1);
-        BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
-        mBugreportManager.startBugreport(parcelFd(new File("/dev/null")),
-                null, new BugreportParams(BugreportParams.BUGREPORT_MODE_INTERACTIVE,
-                BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
-                mContext.getMainExecutor(), callback);
-        latch.await(4, TimeUnit.MINUTES);
-        assertThat(callback.isSuccess()).isTrue();
-        String bugreportFileLocation = callback.getBugreportFile();
-        waitForDumpstateServiceToStop();
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            // User denies consent, therefore no data should be passed back to the bugreport file.
+            ensureNotConsentlessReport();
+            CountDownLatch latch = new CountDownLatch(1);
+            BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
+            mBugreportManager.startBugreport(parcelFd(new File("/dev/null")),
+                    null, new BugreportParams(BugreportParams.BUGREPORT_MODE_INTERACTIVE,
+                            BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
+                    mContext.getMainExecutor(), callback);
+            latch.await(4, TimeUnit.MINUTES);
+            assertThat(callback.isSuccess()).isTrue();
+            String bugreportFileLocation = callback.getBugreportFile();
+            waitForDumpstateServiceToStop();
 
-        latch = new CountDownLatch(1);
-        callback = new BugreportCallbackImpl(latch);
-        File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
-        ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
-        assertThat(bugreportFd).isNotNull();
-        mBugreportManager.retrieveBugreport(
-                bugreportFileLocation,
-                bugreportFd,
-                mContext.getMainExecutor(),
-                callback);
-        shareConsentDialog(ConsentReply.DENY);
-        latch.await(1, TimeUnit.MINUTES);
-        assertThat(callback.getErrorCode()).isEqualTo(
-                BugreportCallback.BUGREPORT_ERROR_USER_DENIED_CONSENT);
-        assertThat(bugreportFile.length()).isEqualTo(0);
+            latch = new CountDownLatch(1);
+            callback = new BugreportCallbackImpl(latch);
+            File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
+            ParcelFileDescriptor bugreportFd = parcelFd(bugreportFile);
+            assertThat(bugreportFd).isNotNull();
+            mBugreportManager.retrieveBugreport(
+                    bugreportFileLocation,
+                    bugreportFd,
+                    mContext.getMainExecutor(),
+                    callback);
+            shareConsentDialog(ConsentReply.DENY);
+            latch.await(1, TimeUnit.MINUTES);
+            assertThat(callback.getErrorCode()).isEqualTo(
+                    BugreportCallback.BUGREPORT_ERROR_USER_DENIED_CONSENT);
+            assertThat(bugreportFile.length()).isEqualTo(0);
 
-        // Since consent has already been denied, this call should fail because consent cannot
-        // be requested twice for the same bugreport.
-        latch = new CountDownLatch(1);
-        callback = new BugreportCallbackImpl(latch);
-        mBugreportManager.retrieveBugreport(bugreportFileLocation, parcelFd(bugreportFile),
-                mContext.getMainExecutor(), callback);
-        latch.await(1, TimeUnit.MINUTES);
-        assertThat(callback.getErrorCode()).isEqualTo(
-                BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
+            // Since consent has already been denied, this call should fail because consent cannot
+            // be requested twice for the same bugreport.
+            latch = new CountDownLatch(1);
+            callback = new BugreportCallbackImpl(latch);
+            mBugreportManager.retrieveBugreport(bugreportFileLocation, parcelFd(bugreportFile),
+                    mContext.getMainExecutor(), callback);
+            latch.await(1, TimeUnit.MINUTES);
+            assertThat(callback.getErrorCode()).isEqualTo(
+                    BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
     }
 
     @LargeTest
@@ -199,6 +218,7 @@ public class BugreportManagerTest {
             CountDownLatch latch = new CountDownLatch(1);
 
             for (int i = 0; i < MAX_ALLOWED_BUGREPROTS + 1; i++) {
+                waitForDumpstateServiceToStop();
                 File bugreportFile = createTempFile(
                         "bugreport_" + name.getMethodName() + "_" + i, ".zip");
                 bugreportFiles.add(bugreportFile);
@@ -232,6 +252,7 @@ public class BugreportManagerTest {
             mBugreportManager.retrieveBugreport(
                     bugreportFileLocations.getFirst(), parcelFd(bugreportFiles.getFirst()),
                     mContext.getMainExecutor(), callback);
+            ensureNotConsentlessReport();
             shareConsentDialog(ConsentReply.ALLOW);
             assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
             assertThat(bugreportFiles.getFirst().length()).isEqualTo(0);
@@ -243,6 +264,7 @@ public class BugreportManagerTest {
             mBugreportManager.retrieveBugreport(
                     bugreportFileLocations.getLast(), parcelFd(bugreportFiles.getLast()),
                     mContext.getMainExecutor(), callback);
+            ensureNotConsentlessReport();
             shareConsentDialog(ConsentReply.ALLOW);
             assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
             assertThat(bugreportFiles.getLast().length()).isGreaterThan(0);
@@ -253,6 +275,166 @@ public class BugreportManagerTest {
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
+    }
+
+    @LargeTest
+    @Test
+    @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    public void testBugreport_skipsConsentForDeferredReportAfterFullReport() throws Exception {
+        // Disable auto time as tests might fail if the system restores time while they are running
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            ensureNotConsentlessReport();
+            startFullReport(false);
+
+            startDeferredReport(true);
+            startDeferredReport(true);
+
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
+    }
+
+    @LargeTest
+    @Test
+    @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    public void testBugreport_skipConsentForDeferredReportAfterDeferredReport() throws Exception {
+        // Disable auto time as tests might fail if the system restores time while they are running
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            ensureNotConsentlessReport();
+            startDeferredReport(false);
+
+            startDeferredReport(true);
+
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
+    }
+
+    @LargeTest
+    @Test
+    @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    public void testBugreport_doesNotSkipConsentForFullReportAfterFullReport() throws Exception {
+        // Disable auto time as tests might fail if the system restores time while they are running
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            ensureNotConsentlessReport();
+            startFullReport(false);
+
+            startFullReport(false);
+
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
+    }
+
+    @LargeTest
+    @Test
+    @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    public void testBugreport_skipConsentForFullReportAfterDeferredReport() throws Exception {
+        // Disable auto time as tests might fail if the system restores time while they are running
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            ensureNotConsentlessReport();
+            startDeferredReport(false);
+
+            startFullReport(true);
+
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
+    }
+
+    @LargeTest
+    @Test
+    @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    public void testBugreport_doesNotSkipConsentAfterTimeLimit() throws Exception {
+        // Disable auto time as tests might fail if the system restores time while they are running
+        SystemUtil.runShellCommand("settings put global auto_time 0");
+        try {
+            ensureNotConsentlessReport();
+            startFullReport(false);
+            final long newTime = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(3);
+            SystemUtil.runWithShellPermissionIdentity(() ->
+                    mContext.getSystemService(AlarmManager.class).setTime(newTime));
+
+            startDeferredReport(false);
+
+        } finally {
+            // Restore auto time
+            SystemUtil.runShellCommand("settings put global auto_time 1");
+            // Remove all bugreport files
+            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
+        }
+    }
+
+    private void ensureNotConsentlessReport() {
+        final long time = System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(60);
+        SystemUtil.runWithShellPermissionIdentity(() ->
+                mContext.getSystemService(AlarmManager.class).setTime(time));
+        assertThat(System.currentTimeMillis()).isGreaterThan(time);
+    }
+
+    private void startFullReport(boolean skipConsent) throws Exception {
+        waitForDumpstateServiceToStop();
+        File bugreportFile = createTempFile("startbugreport", ".zip");
+        CountDownLatch latch = new CountDownLatch(1);
+        BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
+        mBugreportManager.startBugreport(parcelFd(bugreportFile), null,
+                new BugreportParams(BugreportParams.BUGREPORT_MODE_ONBOARDING, 0),
+                mContext.getMainExecutor(), callback);
+        if (!skipConsent) {
+            shareConsentDialog(ConsentReply.ALLOW);
+        }
+        latch.await(2, TimeUnit.MINUTES);
+        assertThat(callback.isSuccess()).isTrue();
+        // No data should be passed to the FD used to call startBugreport.
+        assertThat(bugreportFile.length()).isGreaterThan(0);
+        waitForDumpstateServiceToStop();
+    }
+
+    private void startDeferredReport(boolean skipConsent) throws Exception {
+        waitForDumpstateServiceToStop();
+        File bugreportFile = createTempFile("startbugreport", ".zip");
+        CountDownLatch latch = new CountDownLatch(1);
+        BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
+        mBugreportManager.startBugreport(parcelFd(bugreportFile), null,
+                new BugreportParams(
+                        BugreportParams.BUGREPORT_MODE_ONBOARDING,
+                        BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
+                mContext.getMainExecutor(), callback);
+
+        latch.await(1, TimeUnit.MINUTES);
+        assertThat(callback.isSuccess()).isTrue();
+        String location = callback.getBugreportFile();
+        waitForDumpstateServiceToStop();
+
+
+        // The retrieved bugreport file should not be empty.
+        latch = new CountDownLatch(1);
+        callback = new BugreportCallbackImpl(latch);
+        mBugreportManager.retrieveBugreport(
+                location, parcelFd(bugreportFile),
+                mContext.getMainExecutor(), callback);
+        if (!skipConsent) {
+            shareConsentDialog(ConsentReply.ALLOW);
+        }
+        assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
+        assertThat(bugreportFile.length()).isGreaterThan(0);
+        waitForDumpstateServiceToStop();
     }
 
     private void triggerShellBugreport(int type) throws Exception {
@@ -416,16 +598,21 @@ public class BugreportManagerTest {
     /** Waits for the dumpstate service to stop, for up to 5 seconds. */
     private void waitForDumpstateServiceToStop() throws Exception {
         int pollingIntervalMillis = 100;
-        int numPolls = 50;
         Method method = Class.forName("android.os.ServiceManager").getMethod(
                 "getService", String.class);
-        while (numPolls-- > 0) {
-            // If getService() returns null, the service has stopped.
-            if (method.invoke(null, "dumpstate") == null) {
-                return;
+        for (int i = 0; i < 5; i++) {
+            int numPolls = 50;
+            while (numPolls-- > 0) {
+                // If getService() returns null, the service has stopped.
+                if (method.invoke(null, "dumpstate") == null) {
+                    break;
+                }
+                Thread.sleep(pollingIntervalMillis);
             }
-            Thread.sleep(pollingIntervalMillis);
         }
-        fail("Dumpstate did not stop within 5 seconds");
+        if (method.invoke(null, "dumpstate") == null) {
+            return;
+        }
+        fail("Dumpstate did not stop within 25 seconds");
     }
 }
