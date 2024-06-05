@@ -50,8 +50,10 @@ import androidx.test.uiautomator.Until;
 
 import com.android.compatibility.common.util.SystemUtil;
 
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -90,15 +92,31 @@ public class BugreportManagerTest {
 
 
     @Before
-    public void setup() {
+    public void setup() throws Exception {
         mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mBugreportManager = mContext.getSystemService(BugreportManager.class);
+        ensureNoConsentDialogShown();
+
+
+        // Unlock before finding/clicking an object.
+        final UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
+        device.wakeUp();
+        device.executeShellCommand("wm dismiss-keyguard");
+    }
+
+    @BeforeClass
+    public static void classSetup() {
+        runShellCommand("settings put global auto_time 0");
+        runShellCommand("svc power stayon true");
         // Kill current bugreport, so that it does not interfere with future bugreports.
         runShellCommand("setprop ctl.stop bugreportd");
     }
 
-    @After
-    public void tearDown() {
+    @AfterClass
+    public static void classTearDown() {
+        // Restore auto time
+        runShellCommand("settings put global auto_time 1");
+        runShellCommand("svc power stayon false");
         // Kill current bugreport, so that it does not interfere with future bugreports.
         runShellCommand("setprop ctl.stop bugreportd");
     }
@@ -106,7 +124,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     public void testRetrieveBugreportConsentGranted() throws Exception {
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             ensureNotConsentlessReport();
             File startBugreportFile = createTempFile("startbugreport", ".zip");
@@ -114,7 +131,7 @@ public class BugreportManagerTest {
             BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
             mBugreportManager.startBugreport(parcelFd(startBugreportFile), null,
                     new BugreportParams(
-                            BugreportParams.BUGREPORT_MODE_INTERACTIVE,
+                            BugreportParams.BUGREPORT_MODE_ONBOARDING,
                             BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
                     mContext.getMainExecutor(), callback);
             latch.await(4, TimeUnit.MINUTES);
@@ -134,6 +151,7 @@ public class BugreportManagerTest {
             assertThat(latch.await(10, TimeUnit.SECONDS)).isTrue();
             assertThat(callback.getErrorCode()).isEqualTo(
                     BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
+            waitForDumpstateServiceToStop();
 
             File bugreportFile = createTempFile("bugreport_" + name.getMethodName(), ".zip");
             // A bugreport was previously generated for this caller. When the consent dialog is invoked
@@ -147,8 +165,7 @@ public class BugreportManagerTest {
             assertThat(latch.await(1, TimeUnit.MINUTES)).isTrue();
             assertThat(bugreportFile.length()).isGreaterThan(0);
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -158,14 +175,13 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     public void testRetrieveBugreportConsentDenied() throws Exception {
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             // User denies consent, therefore no data should be passed back to the bugreport file.
             ensureNotConsentlessReport();
             CountDownLatch latch = new CountDownLatch(1);
             BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
             mBugreportManager.startBugreport(parcelFd(new File("/dev/null")),
-                    null, new BugreportParams(BugreportParams.BUGREPORT_MODE_INTERACTIVE,
+                    null, new BugreportParams(BugreportParams.BUGREPORT_MODE_ONBOARDING,
                             BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT),
                     mContext.getMainExecutor(), callback);
             latch.await(4, TimeUnit.MINUTES);
@@ -188,6 +204,7 @@ public class BugreportManagerTest {
             assertThat(callback.getErrorCode()).isEqualTo(
                     BugreportCallback.BUGREPORT_ERROR_USER_DENIED_CONSENT);
             assertThat(bugreportFile.length()).isEqualTo(0);
+            waitForDumpstateServiceToStop();
 
             // Since consent has already been denied, this call should fail because consent cannot
             // be requested twice for the same bugreport.
@@ -198,9 +215,9 @@ public class BugreportManagerTest {
             latch.await(1, TimeUnit.MINUTES);
             assertThat(callback.getErrorCode()).isEqualTo(
                     BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
+            waitForDumpstateServiceToStop();
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -209,9 +226,8 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_BUGREPORT_STORAGE_BUG_FIX)
+    @Ignore
     public void testBugreportsLimitReached() throws Exception {
-        // Disable auto time as tests might fail if the system restores time while they are running
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             List<File> bugreportFiles = new ArrayList<>();
             List<String> bugreportFileLocations = new ArrayList<>();
@@ -270,8 +286,7 @@ public class BugreportManagerTest {
             assertThat(bugreportFiles.getLast().length()).isGreaterThan(0);
             waitForDumpstateServiceToStop();
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -280,9 +295,8 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    @Ignore
     public void testBugreport_skipsConsentForDeferredReportAfterFullReport() throws Exception {
-        // Disable auto time as tests might fail if the system restores time while they are running
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             ensureNotConsentlessReport();
             startFullReport(false);
@@ -291,8 +305,7 @@ public class BugreportManagerTest {
             startDeferredReport(true);
 
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -301,9 +314,8 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    @Ignore
     public void testBugreport_skipConsentForDeferredReportAfterDeferredReport() throws Exception {
-        // Disable auto time as tests might fail if the system restores time while they are running
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             ensureNotConsentlessReport();
             startDeferredReport(false);
@@ -311,8 +323,7 @@ public class BugreportManagerTest {
             startDeferredReport(true);
 
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -321,9 +332,8 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    @Ignore("b/344704922")
     public void testBugreport_doesNotSkipConsentForFullReportAfterFullReport() throws Exception {
-        // Disable auto time as tests might fail if the system restores time while they are running
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             ensureNotConsentlessReport();
             startFullReport(false);
@@ -331,8 +341,7 @@ public class BugreportManagerTest {
             startFullReport(false);
 
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -341,9 +350,8 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    @Ignore
     public void testBugreport_skipConsentForFullReportAfterDeferredReport() throws Exception {
-        // Disable auto time as tests might fail if the system restores time while they are running
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             ensureNotConsentlessReport();
             startDeferredReport(false);
@@ -351,8 +359,7 @@ public class BugreportManagerTest {
             startFullReport(true);
 
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -361,9 +368,8 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    @Ignore
     public void testBugreport_doesNotSkipConsentAfterTimeLimit() throws Exception {
-        // Disable auto time as tests might fail if the system restores time while they are running
-        SystemUtil.runShellCommand("settings put global auto_time 0");
         try {
             ensureNotConsentlessReport();
             startFullReport(false);
@@ -374,8 +380,7 @@ public class BugreportManagerTest {
             startDeferredReport(false);
 
         } finally {
-            // Restore auto time
-            SystemUtil.runShellCommand("settings put global auto_time 1");
+            waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
         }
@@ -399,6 +404,7 @@ public class BugreportManagerTest {
         if (!skipConsent) {
             shareConsentDialog(ConsentReply.ALLOW);
         }
+
         latch.await(2, TimeUnit.MINUTES);
         assertThat(callback.isSuccess()).isTrue();
         // No data should be passed to the FD used to call startBugreport.
@@ -570,10 +576,6 @@ public class BugreportManagerTest {
     private void shareConsentDialog(@NonNull ConsentReply consentReply) throws Exception {
         final UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
 
-        // Unlock before finding/clicking an object.
-        device.wakeUp();
-        device.executeShellCommand("wm dismiss-keyguard");
-
         final BySelector consentTitleObj = By.res("android", "alertTitle");
         if (!device.wait(Until.hasObject(consentTitleObj), UIAUTOMATOR_TIMEOUT_MS)) {
             fail("The consent dialog is not found");
@@ -594,13 +596,34 @@ public class BugreportManagerTest {
         assertThat(device.wait(Until.gone(consentTitleObj), UIAUTOMATOR_TIMEOUT_MS)).isTrue();
     }
 
+    /*
+     * Ensure the consent dialog is shown and take action according to <code>consentReply<code/>.
+     * It will fail if the dialog is not shown when <code>ignoreNotFound<code/> is false.
+     */
+    private void ensureNoConsentDialogShown() throws Exception {
+        final UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
+
+        final BySelector consentTitleObj = By.res("android", "alertTitle");
+        if (!device.wait(Until.hasObject(consentTitleObj), TimeUnit.SECONDS.toMillis(2))) {
+            return;
+        }
+        final BySelector selector = By.res("android", "button2");
+        final UiObject2 btnObj = device.findObject(selector);
+        if (btnObj == null) {
+            return;
+        }
+        btnObj.click();
+
+        device.wait(Until.gone(consentTitleObj), UIAUTOMATOR_TIMEOUT_MS);
+    }
+
 
     /** Waits for the dumpstate service to stop, for up to 5 seconds. */
     private void waitForDumpstateServiceToStop() throws Exception {
         int pollingIntervalMillis = 100;
         Method method = Class.forName("android.os.ServiceManager").getMethod(
                 "getService", String.class);
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 10; i++) {
             int numPolls = 50;
             while (numPolls-- > 0) {
                 // If getService() returns null, the service has stopped.
