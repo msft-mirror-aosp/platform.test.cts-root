@@ -23,11 +23,12 @@ android_test {
         "androidx.test.rules",
         "androidx.test.uiautomator_uiautomator",
         "compatibility-device-util-axt",
-        "truth-prebuilt",
+        "truth",
     ],
     libs: [
         "android.test.runner",
         "android.test.base",
+        "device_policy_aconfig_flags_lib",
     ],
     data: [":ctsroot-bugreport-artifacts"],
     srcs: ["src/**/*.java"],
@@ -39,6 +40,6 @@ android_test {
 }
 
 filegroup {
-  name: "ctsroot-bugreport-artifacts",
-  srcs: ["config/test-sysconfig.xml"],
+    name: "ctsroot-bugreport-artifacts",
+    srcs: ["config/test-sysconfig.xml"],
 }

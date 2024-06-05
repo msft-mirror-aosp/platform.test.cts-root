@@ -13,6 +13,7 @@
 // limitations under the License.
 
 package {
+    default_team: "trendy_team_android_telemetry_infra",
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
@@ -30,7 +31,7 @@ android_test {
         "androidx.test.rules",
         "compatibility-device-util-axt",
         "services.core",
-        "truth-prebuilt",
+        "truth",
         "platform-test-annotations",
     ],
     libs: [
