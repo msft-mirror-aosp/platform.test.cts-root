@@ -226,7 +226,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_BUGREPORT_STORAGE_BUG_FIX)
-    @Ignore
     public void testBugreportsLimitReached() throws Exception {
         try {
             List<File> bugreportFiles = new ArrayList<>();
@@ -295,7 +294,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
-    @Ignore
     public void testBugreport_skipsConsentForDeferredReportAfterFullReport() throws Exception {
         try {
             ensureNotConsentlessReport();
@@ -314,7 +312,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
-    @Ignore
     public void testBugreport_skipConsentForDeferredReportAfterDeferredReport() throws Exception {
         try {
             ensureNotConsentlessReport();
@@ -350,7 +347,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
-    @Ignore
     public void testBugreport_skipConsentForFullReportAfterDeferredReport() throws Exception {
         try {
             ensureNotConsentlessReport();
@@ -368,7 +364,6 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
-    @Ignore
     public void testBugreport_doesNotSkipConsentAfterTimeLimit() throws Exception {
         try {
             ensureNotConsentlessReport();
