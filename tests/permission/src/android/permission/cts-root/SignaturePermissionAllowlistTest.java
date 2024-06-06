@@ -112,7 +112,8 @@ public final class SignaturePermissionAllowlistTest {
     @RequiresFlagsEnabled(Flags.FLAG_SIGNATURE_PERMISSION_ALLOWLIST_ENABLED)
     @Test
     public void normalAppCanGetSignaturePermissionWithAllowlist() throws Exception {
-        assertThat(mPackageManager.checkPermission(android.Manifest.permission.FACTORY_TEST,
+        assertThat(mPackageManager.checkPermission(
+                android.Manifest.permission.RESERVED_FOR_TESTING_SIGNATURE,
                 NORMAL_APP_PACKAGE_NAME)).isEqualTo(PackageManager.PERMISSION_GRANTED);
     }
 

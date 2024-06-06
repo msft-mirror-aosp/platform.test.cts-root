@@ -17,16 +17,10 @@ package {
     default_team: "trendy_team_android_permissions",
 }
 
-filegroup {
-    name: "cts-root-permission-data",
-    srcs: ["data/**/*"],
-}
-
 android_test {
     name: "CtsRootPermissionTestCases",
     defaults: ["cts_defaults"],
     data: [
-        ":cts-root-permission-data",
         ":CtsRootPermissionSignaturePermissionAllowlistNormalApp",
     ],
     libs: [

@@ -24,13 +24,8 @@
 
     <target_preparer class="com.android.tradefed.targetprep.PushFilePreparer">
         <option name="push-file" key="CtsRootPermissionSignaturePermissionAllowlistNormalApp.apk" value="/data/local/tmp/cts-root-permission/CtsRootPermissionSignaturePermissionAllowlistNormalApp.apk" />
-        <option name="push-file" key="signature-permissions-cts-root-permission.xml" value="/system/etc/permissions/signature-permissions-cts-root-permission.xml" />
         <option name="cleanup" value="true" />
-        <option name="remount-system" value="true" />
     </target_preparer>
-
-    <!-- Reboot the system so that it will read our newly pushed allowlist. -->
-    <target_preparer class="com.android.tradefed.targetprep.RebootTargetPreparer" />
 
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
         <option name="cleanup-apks" value="true" />
