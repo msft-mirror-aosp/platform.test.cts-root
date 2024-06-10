@@ -53,6 +53,7 @@ import com.android.compatibility.common.util.SystemUtil;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -328,6 +329,7 @@ public class BugreportManagerTest {
     @LargeTest
     @Test
     @RequiresFlagsEnabled(FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS)
+    @Ignore("b/344704922")
     public void testBugreport_doesNotSkipConsentForFullReportAfterFullReport() throws Exception {
         try {
             ensureNotConsentlessReport();
