@@ -26,6 +26,7 @@ android_test {
     libs: [
         "android.test.runner",
         "android.test.base",
+        "bedstead-root-annotations",
     ],
     // TODO(b/326241209): @TestApi isn't supported in system server right now.
     //sdk_version: "test_current",
@@ -44,6 +45,8 @@ android_test {
     ],
     test_suites: [
         "cts_root",
+        // For gts-root before cts-root is required.
+        "gts",
         "general-tests",
     ],
 }

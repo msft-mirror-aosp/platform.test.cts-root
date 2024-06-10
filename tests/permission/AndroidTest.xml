@@ -19,6 +19,8 @@
 <configuration description="Runs Permission CTS root tests">
     <option name="test-suite-tag" value="apct" />
     <option name="test-suite-tag" value="apct-instrumentation" />
+    <option name="test-suite-tag" value="gts" />
+    <option name="config-descriptor:metadata" key="component" value="gts-root"/>
 
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer"/>
 
