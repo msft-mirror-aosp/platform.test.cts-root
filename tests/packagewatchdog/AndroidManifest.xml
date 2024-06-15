@@ -1,7 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-
 <!--
-  ~ Copyright (C) 2024 The Android Open Source Project
+  ~ Copyright (C) 2021 The Android Open Source Project
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -16,8 +14,15 @@
   ~ limitations under the License.
   -->
 
-<permissions>
-    <signature-permissions package="android.permission.cts_root.apps.signaturepermissionallowlist.normal">
-        <permission name="android.permission.FACTORY_TEST" />
-    </signature-permissions>
-</permissions>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="android.packagewatchdog.cts_root" >
+
+    <application>
+        <uses-library android:name="android.test.runner" />
+    </application>
+
+    <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner"
+                     android:targetPackage="android"
+                     android:label="PackageWatchdog CTS root tests"/>
+
+</manifest>
