@@ -34,6 +34,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.compatibility.common.util.SystemUtil;
+import com.android.modules.utils.build.SdkLevel;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.permission.PermissionManagerLocal;
 import com.android.server.pm.PackageManagerLocal;
@@ -76,6 +77,7 @@ public final class SignaturePermissionAllowlistTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
+        assumeTrue(SdkLevel.isAtLeastV());
         assumeTrue(Build.isDebuggable());
     }
 
