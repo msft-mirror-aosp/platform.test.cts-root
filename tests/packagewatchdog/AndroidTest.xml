@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <!--
-  ~ Copyright (C) 2024 The Android Open Source Project
+  ~ Copyright (C) 2021 The Android Open Source Project
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -15,27 +14,24 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-
-<configuration description="Runs Permission CTS root tests">
+<configuration description="Runs PackageWatchdog CTS root tests">
     <option name="test-suite-tag" value="apct" />
     <option name="test-suite-tag" value="apct-instrumentation" />
-    <option name="test-suite-tag" value="gts" />
-    <option name="config-descriptor:metadata" key="component" value="gts-root"/>
 
     <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer"/>
 
-    <target_preparer class="com.android.tradefed.targetprep.PushFilePreparer">
-        <option name="push-file" key="CtsRootPermissionSignaturePermissionAllowlistNormalApp.apk" value="/data/local/tmp/cts-root-permission/CtsRootPermissionSignaturePermissionAllowlistNormalApp.apk" />
-        <option name="cleanup" value="true" />
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="cleanup-apks" value="true"/>
+        <option name="test-file-name" value="CtsRootPackageWatchdogTestCases.apk"/>
     </target_preparer>
 
-    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
-        <option name="cleanup-apks" value="true" />
-        <option name="test-file-name" value="CtsRootPermissionTestCases.apk" />
+    <!-- Restart to clear test code from system server -->
+    <target_preparer class="com.android.tradefed.targetprep.DeviceCleaner">
+        <option name="cleanup-action" value="REBOOT" />
     </target_preparer>
 
     <test class="com.android.tradefed.testtype.AndroidJUnitTest">
-        <option name="package" value="android.permission.cts_root" />
+        <option name="package" value="android.packagewatchdog.cts_root"/>
         <option name="runner" value="androidx.test.runner.AndroidJUnitRunner" />
         <option name="restart" value="false" />
     </test>
