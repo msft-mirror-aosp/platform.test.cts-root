@@ -21,7 +21,7 @@
      package="android.permission.cts_root.apps.signaturepermissionallowlist.normal">
 
     <uses-permission android:name="android.permission.BRICK" />
-    <uses-permission android:name="android.permission.FACTORY_TEST" />
+    <uses-permission android:name="android.permission.RESERVED_FOR_TESTING_SIGNATURE" />
 
     <application
         android:hasCode="false"
