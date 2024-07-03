@@ -30,6 +30,7 @@ import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.annotation.NonNull;
+import androidx.test.filters.SdkSuppress;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -38,6 +39,7 @@ import com.android.server.LocalManagerRegistry;
 import com.android.server.permission.PermissionManagerLocal;
 import com.android.server.pm.PackageManagerLocal;
 import com.android.server.pm.pkg.PackageState;
+import com.android.xts.root.annotations.RequireAdbRoot;
 
 import org.junit.After;
 import org.junit.Before;
@@ -48,7 +50,9 @@ import org.junit.runner.RunWith;
 
 import java.util.Map;
 
+@RequireAdbRoot
 @RunWith(AndroidJUnit4.class)
+@SdkSuppress(minSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM, codeName = "VanillaIceCream")
 public final class SignaturePermissionAllowlistTest {
     private static final String NORMAL_APP_APK_PATH = "/data/local/tmp/cts-root-permission/"
             + "CtsRootPermissionSignaturePermissionAllowlistNormalApp.apk";
@@ -112,7 +116,8 @@ public final class SignaturePermissionAllowlistTest {
     @RequiresFlagsEnabled(Flags.FLAG_SIGNATURE_PERMISSION_ALLOWLIST_ENABLED)
     @Test
     public void normalAppCanGetSignaturePermissionWithAllowlist() throws Exception {
-        assertThat(mPackageManager.checkPermission(android.Manifest.permission.FACTORY_TEST,
+        assertThat(mPackageManager.checkPermission(
+                android.Manifest.permission.RESERVED_FOR_TESTING_SIGNATURE,
                 NORMAL_APP_PACKAGE_NAME)).isEqualTo(PackageManager.PERMISSION_GRANTED);
     }
 
