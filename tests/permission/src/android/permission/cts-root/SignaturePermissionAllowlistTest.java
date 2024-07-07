@@ -30,11 +30,11 @@ import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.annotation.NonNull;
+import androidx.test.filters.SdkSuppress;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.compatibility.common.util.SystemUtil;
-import com.android.modules.utils.build.SdkLevel;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.permission.PermissionManagerLocal;
 import com.android.server.pm.PackageManagerLocal;
@@ -52,6 +52,7 @@ import java.util.Map;
 
 @RequireAdbRoot
 @RunWith(AndroidJUnit4.class)
+@SdkSuppress(minSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM, codeName = "VanillaIceCream")
 public final class SignaturePermissionAllowlistTest {
     private static final String NORMAL_APP_APK_PATH = "/data/local/tmp/cts-root-permission/"
             + "CtsRootPermissionSignaturePermissionAllowlistNormalApp.apk";
@@ -77,7 +78,6 @@ public final class SignaturePermissionAllowlistTest {
 
     @BeforeClass
     public static void setUpClass() throws Exception {
-        assumeTrue(SdkLevel.isAtLeastV());
         assumeTrue(Build.isDebuggable());
     }
 
