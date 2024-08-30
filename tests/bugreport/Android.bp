@@ -26,8 +26,8 @@ android_test {
         "truth",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.base",
+        "android.test.runner.stubs.test",
+        "android.test.base.stubs.test",
         "device_policy_aconfig_flags_lib",
     ],
     data: [":ctsroot-bugreport-artifacts"],
