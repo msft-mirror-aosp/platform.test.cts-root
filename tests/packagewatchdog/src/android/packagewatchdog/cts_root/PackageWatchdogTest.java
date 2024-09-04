@@ -281,7 +281,7 @@ public class PackageWatchdogTest {
             return true;
         }
 
-        public String getName() {
+        public String getUniqueIdentifier() {
             return mName;
         }
 
