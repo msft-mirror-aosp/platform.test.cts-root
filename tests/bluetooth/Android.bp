@@ -28,8 +28,8 @@ android_test {
         "statsd-helper",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.base",
+        "android.test.runner.stubs.system",
+        "android.test.base.stubs.system",
         "statsdprotonano",
     ],
     srcs: ["src/**/*.java"],
