@@ -28,7 +28,7 @@ import androidx.test.filters.MediumTest
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.cts.input.DefaultPointerSpeedRule
 import com.android.cts.input.TestPointerDevice
-import com.android.cts.input.VirtualDisplayActivityScenarioRule
+import com.android.cts.input.VirtualDisplayActivityScenario
 import com.android.cts.input.inputeventmatchers.withMotionAction
 import com.android.input.flags.Flags
 import com.android.xts.root.annotations.RequireAdbRoot
@@ -70,7 +70,7 @@ class HidePointerIconOnSecureWindowScreenshotTest {
     @get:Rule
     val testName = TestName()
     @get:Rule
-    val virtualDisplayRule = VirtualDisplayActivityScenarioRule<CaptureEventActivity>(
+    val virtualDisplayRule = VirtualDisplayActivityScenario.Rule<CaptureEventActivity>(
         testName,
         /*useSecureDisplay=*/true
     )
