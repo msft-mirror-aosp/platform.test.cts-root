@@ -24,8 +24,8 @@ android_test {
         ":CtsRootPermissionSignaturePermissionAllowlistNormalApp",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.base",
+        "android.test.runner.stubs.system",
+        "android.test.base.stubs.system",
         "bedstead-root-annotations",
     ],
     min_sdk_version: "30",
