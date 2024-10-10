@@ -23,7 +23,7 @@ import android.os.SystemProperties
 import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import android.view.WindowManager
-import android.virtualdevice.cts.common.VirtualDeviceRule
+import android.virtualdevice.cts.common.FakeAssociationRule
 import androidx.test.filters.MediumTest
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.cts.input.DefaultPointerSpeedRule
@@ -71,14 +71,12 @@ class HidePointerIconOnSecureWindowScreenshotTest {
     @get:Rule
     val testName = TestName()
     @get:Rule
-    val virtualDeviceRule = VirtualDeviceRule.createDefault()!!
-    // TODO(b/366492484): Remove reliance on VDM.
-    @get:Rule
     val virtualDisplayRule = VirtualDisplayActivityScenario.Rule<CaptureEventActivity>(
         testName,
         useSecureDisplay = true,
-        virtualDeviceRule = virtualDeviceRule
     )
+    @get:Rule
+    val fakeAssociationRule = FakeAssociationRule()
     @get:Rule
     val defaultPointerSpeedRule = DefaultPointerSpeedRule()
     @get:Rule
@@ -94,6 +92,7 @@ class HidePointerIconOnSecureWindowScreenshotTest {
 
     @Before
     fun setUp() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
         activity = virtualDisplayRule.activity
         activity.runOnUiThread {
             activity.actionBar?.hide()
@@ -102,8 +101,9 @@ class HidePointerIconOnSecureWindowScreenshotTest {
         }
 
         device.setUp(
-            virtualDeviceRule.defaultVirtualDevice,
+            context,
             virtualDisplayRule.virtualDisplay.display,
+            fakeAssociationRule.associationInfo,
         )
 
         verifier = EventVerifier(activity::getInputEvent)
