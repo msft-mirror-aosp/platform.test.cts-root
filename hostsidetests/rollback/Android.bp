@@ -27,7 +27,7 @@ java_test_host {
         "truth",
     ],
     static_libs: ["cts-install-lib-host"],
-    data: [":CtsRootRollbackManagerHostTestHelperApp"],
+    device_common_data: [":CtsRootRollbackManagerHostTestHelperApp"],
     test_suites: [
         "cts_root",
         "general-tests",
