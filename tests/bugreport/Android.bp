@@ -24,10 +24,11 @@ android_test {
         "androidx.test.uiautomator_uiautomator",
         "compatibility-device-util-axt",
         "truth",
+        "android.os.flags-aconfig-java",
     ],
     libs: [
-        "android.test.runner",
-        "android.test.base",
+        "android.test.runner.stubs.test",
+        "android.test.base.stubs.test",
         "device_policy_aconfig_flags_lib",
     ],
     data: [":ctsroot-bugreport-artifacts"],
