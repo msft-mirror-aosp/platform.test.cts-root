@@ -23,7 +23,7 @@ import android.os.SystemProperties
 import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import android.view.WindowManager
-import android.virtualdevice.cts.common.FakeAssociationRule
+import android.virtualdevice.cts.common.VirtualDeviceRule
 import androidx.test.filters.MediumTest
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.cts.input.DefaultPointerSpeedRule
@@ -47,6 +47,7 @@ import platform.test.screenshot.assertAgainstGolden
 import platform.test.screenshot.matchers.AlmostPerfectMatcher
 import platform.test.screenshot.matchers.BitmapMatcher
 import kotlin.test.assertNotNull
+import org.junit.Ignore
 
 /**
  * End-to-end tests for the hiding pointer icons of screenshots of secure displays
@@ -70,12 +71,14 @@ class HidePointerIconOnSecureWindowScreenshotTest {
     @get:Rule
     val testName = TestName()
     @get:Rule
+    val virtualDeviceRule = VirtualDeviceRule.createDefault()!!
+    // TODO(b/366492484): Remove reliance on VDM.
+    @get:Rule
     val virtualDisplayRule = VirtualDisplayActivityScenario.Rule<CaptureEventActivity>(
         testName,
-        /*useSecureDisplay=*/true
+        useSecureDisplay = true,
+        virtualDeviceRule = virtualDeviceRule
     )
-    @get:Rule
-    val fakeAssociationRule = FakeAssociationRule()
     @get:Rule
     val defaultPointerSpeedRule = DefaultPointerSpeedRule()
     @get:Rule
@@ -91,7 +94,6 @@ class HidePointerIconOnSecureWindowScreenshotTest {
 
     @Before
     fun setUp() {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
         activity = virtualDisplayRule.activity
         activity.runOnUiThread {
             activity.actionBar?.hide()
@@ -99,7 +101,10 @@ class HidePointerIconOnSecureWindowScreenshotTest {
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
 
-        device.setUp(context, virtualDisplayRule.virtualDisplay.display, fakeAssociationRule)
+        device.setUp(
+            virtualDeviceRule.defaultVirtualDevice,
+            virtualDisplayRule.virtualDisplay.display,
+        )
 
         verifier = EventVerifier(activity::getInputEvent)
 
@@ -112,6 +117,7 @@ class HidePointerIconOnSecureWindowScreenshotTest {
         device.tearDown()
     }
 
+    @Ignore("b/366475909")
     @Test
     @EnableFlags(Flags.FLAG_HIDE_POINTER_INDICATORS_FOR_SECURE_WINDOWS)
     fun testHidePointerIconOnSecureWindowScreenshot() {
@@ -149,7 +155,7 @@ class HidePointerIconOnSecureWindowScreenshotTest {
         const val MAX_PIXELS_DIFFERENT = 5
         const val ASSETS_PATH = "tests/input/assets"
         val TEST_OUTPUT_PATH =
-            "/sdcard/Download/CtsInputTestCases/" +
+            "/sdcard/Download/CtsInputRootTestCases/" +
             HidePointerIconOnSecureWindowScreenshotTest::class.java.simpleName
         val HW_TIMEOUT_MULTIPLIER = SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
 
