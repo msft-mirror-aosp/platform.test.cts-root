@@ -274,8 +274,8 @@ public class PackageWatchdogTest {
             return mImpact;
         }
 
-        public boolean execute(VersionedPackage versionedPackage, int failureReason,
-                int mitigationCount) {
+        public boolean onExecuteHealthCheckMitigation(VersionedPackage versionedPackage,
+                int failureReason, int mitigationCount) {
             mMitigatedPackages.add(versionedPackage.getPackageName());
             mLatch.countDown();
             return true;
@@ -289,7 +289,7 @@ public class PackageWatchdogTest {
             return mImpact;
         }
 
-        public boolean executeBootLoopMitigation(int level) {
+        public boolean onExecuteBootLoopMitigation(int level) {
             return true;
         }
 
