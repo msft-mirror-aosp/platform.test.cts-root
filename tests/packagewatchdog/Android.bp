@@ -26,6 +26,7 @@ android_test {
         "services.core",
         "truth",
         "platform-test-annotations",
+        "service-crashrecovery.impl",
     ],
     libs: [
         "android.test.runner.stubs.test",
@@ -36,5 +37,5 @@ android_test {
         "cts_root",
         "general-tests",
     ],
-    sdk_version: "test_current",
+    sdk_version: "system_server_current",
 }
