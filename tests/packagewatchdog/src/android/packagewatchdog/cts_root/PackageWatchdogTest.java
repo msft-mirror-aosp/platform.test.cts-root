@@ -159,7 +159,7 @@ public class PackageWatchdogTest {
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
 
         for (int i = 0; i < FAILURE_COUNT_THRESHOLD - 1; i++) {
-            mPackageWatchdog.onPackageFailure(Arrays.asList(
+            mPackageWatchdog.notifyPackageFailure(Arrays.asList(
                     new VersionedPackage(APP_A, VERSION_CODE)),
                     PackageWatchdog.FAILURE_REASON_UNKNOWN);
         }
@@ -237,7 +237,7 @@ public class PackageWatchdogTest {
             failureCount = 1;
         }
         for (int i = 0; i < failureCount; i++) {
-            mPackageWatchdog.onPackageFailure(failingPackages, failureReason);
+            mPackageWatchdog.notifyPackageFailure(failingPackages, failureReason);
         }
         try {
             // Wait for DEFAULT_MITIGATION_WINDOW_MS before applying another mitigation
