@@ -24,7 +24,6 @@ android_test {
         "androidx.test.uiautomator_uiautomator",
         "compatibility-device-util-axt",
         "truth",
-        "android.os.flags-aconfig-java",
     ],
     libs: [
         "android.test.runner.stubs.test",

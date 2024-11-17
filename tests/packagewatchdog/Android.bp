@@ -26,7 +26,7 @@ android_test {
         "services.core",
         "truth",
         "platform-test-annotations",
-        "service-crashrecovery.impl",
+        "service-crashrecovery-pre-jarjar",
     ],
     libs: [
         "android.test.runner.stubs.test",
