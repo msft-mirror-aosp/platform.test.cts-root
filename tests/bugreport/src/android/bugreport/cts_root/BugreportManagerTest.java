@@ -18,8 +18,6 @@ package android.bugreport.cts_root;
 
 import static android.app.admin.flags.Flags.FLAG_ONBOARDING_BUGREPORT_STORAGE_BUG_FIX;
 import static android.app.admin.flags.Flags.FLAG_ONBOARDING_CONSENTLESS_BUGREPORTS;
-import static android.os.Flags.FLAG_ALLOW_CONSENTLESS_BUGREPORT_DELEGATED_CONSENT;
-import static android.Manifest.permission.CAPTURE_CONSENTLESS_BUGREPORT_DELEGATED_CONSENT;
 
 import static com.android.compatibility.common.util.SystemUtil.runShellCommand;
 
@@ -28,7 +26,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 
 import android.app.AlarmManager;
-import android.app.UiAutomation;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -42,7 +39,7 @@ import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.annotation.NonNull;
-import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.LargeTest;
 import androidx.test.runner.AndroidJUnit4;
 import androidx.test.uiautomator.By;
@@ -78,7 +75,6 @@ import java.util.concurrent.TimeUnit;
 public class BugreportManagerTest {
 
     private Context mContext;
-    private UiAutomation mUiAutomation;
     private BugreportManager mBugreportManager;
 
     @Rule
@@ -98,7 +94,6 @@ public class BugreportManagerTest {
     @Before
     public void setup() throws Exception {
         mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         mBugreportManager = mContext.getSystemService(BugreportManager.class);
         ensureNoConsentDialogShown();
 
@@ -225,33 +220,6 @@ public class BugreportManagerTest {
             waitForDumpstateServiceToStop();
             // Remove all bugreport files
             SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
-        }
-    }
-
-
-    @Test
-    @RequiresFlagsEnabled(FLAG_ALLOW_CONSENTLESS_BUGREPORT_DELEGATED_CONSENT)
-    public void testConsentlessBugreportDelegatedConsent() throws Exception {
-        mUiAutomation.adoptShellPermissionIdentity(CAPTURE_CONSENTLESS_BUGREPORT_DELEGATED_CONSENT);
-        try {
-            ensureNotConsentlessReport();
-            File bugreportFile = createTempFile("startbugreport", ".zip");
-            CountDownLatch latch = new CountDownLatch(1);
-            BugreportCallbackImpl callback = new BugreportCallbackImpl(latch);
-            mBugreportManager.startBugreport(
-                    parcelFd(bugreportFile),
-                    null,
-                    new BugreportParams(BugreportParams.BUGREPORT_MODE_FULL),
-                    mContext.getMainExecutor(),
-                    callback);
-            latch.await(4, TimeUnit.MINUTES);
-            assertThat(callback.isSuccess()).isTrue();
-            assertThat(bugreportFile.length()).isGreaterThan(0);
-        } finally {
-            waitForDumpstateServiceToStop();
-            // Remove all bugreport files
-            SystemUtil.runShellCommand("rm -f -rR -v /bugreports/");
-            mUiAutomation.dropShellPermissionIdentity();
         }
     }
 

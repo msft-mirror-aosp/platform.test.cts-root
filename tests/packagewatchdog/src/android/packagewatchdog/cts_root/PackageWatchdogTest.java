@@ -159,7 +159,7 @@ public class PackageWatchdogTest {
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
 
         for (int i = 0; i < FAILURE_COUNT_THRESHOLD - 1; i++) {
-            mPackageWatchdog.onPackageFailure(Arrays.asList(
+            mPackageWatchdog.notifyPackageFailure(Arrays.asList(
                     new VersionedPackage(APP_A, VERSION_CODE)),
                     PackageWatchdog.FAILURE_REASON_UNKNOWN);
         }
@@ -237,7 +237,7 @@ public class PackageWatchdogTest {
             failureCount = 1;
         }
         for (int i = 0; i < failureCount; i++) {
-            mPackageWatchdog.onPackageFailure(failingPackages, failureReason);
+            mPackageWatchdog.notifyPackageFailure(failingPackages, failureReason);
         }
         try {
             // Wait for DEFAULT_MITIGATION_WINDOW_MS before applying another mitigation
@@ -274,8 +274,8 @@ public class PackageWatchdogTest {
             return mImpact;
         }
 
-        public boolean execute(VersionedPackage versionedPackage, int failureReason,
-                int mitigationCount) {
+        public boolean onExecuteHealthCheckMitigation(VersionedPackage versionedPackage,
+                int failureReason, int mitigationCount) {
             mMitigatedPackages.add(versionedPackage.getPackageName());
             mLatch.countDown();
             return true;
@@ -289,7 +289,7 @@ public class PackageWatchdogTest {
             return mImpact;
         }
 
-        public boolean executeBootLoopMitigation(int level) {
+        public boolean onExecuteBootLoopMitigation(int level) {
             return true;
         }
 
