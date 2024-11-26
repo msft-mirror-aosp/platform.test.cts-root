@@ -31,6 +31,9 @@
             <option name="remount-system" value="true" />
     </target_preparer>
     <target_preparer class="com.android.tradefed.targetprep.RebootTargetPreparer" />
+    <target_preparer class="com.android.tradefed.targetprep.FeatureFlagTargetPreparer" >
+        <option name="flag-value" value="crumpet/android.os.allow_consentless_bugreport_delegated_consent=true" />
+    </target_preparer>
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="android.bugreport.cts_root" />
     </test>
