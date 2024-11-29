@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 public class PackageWatchdogTest {
 
     private PackageWatchdog mPackageWatchdog;
-
+    private Context mContext;
 
     private static final String APP_A = "com.app.a";
     private static final String APP_B = "com.app.b";
@@ -55,7 +55,7 @@ public class PackageWatchdogTest {
     @Before
     @UiThreadTest
     public void setUp() {
-        Context mContext = InstrumentationRegistry.getInstrumentation().getContext();
+        mContext = InstrumentationRegistry.getInstrumentation().getContext();
         mPackageWatchdog = PackageWatchdog.getInstance(mContext);
         mLatch1 = new CountDownLatch(1);
         mLatch2 = new CountDownLatch(1);
@@ -75,7 +75,7 @@ public class PackageWatchdogTest {
     public void testAppCrashIsMitigated() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         mTestObserver1 = new TestObserver(OBSERVER_NAME_1, latch);
-        mPackageWatchdog.registerHealthObserver(mTestObserver1);
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(
                 mTestObserver1, List.of(APP_A), SHORT_DURATION);
         raiseFatalFailure(Arrays.asList(new VersionedPackage(APP_A,
@@ -89,6 +89,7 @@ public class PackageWatchdogTest {
     public void testAppCrashWithoutObserver() throws Exception {
         mTestObserver1 = new TestObserver(OBSERVER_NAME_1, mLatch1);
 
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
         raiseFatalFailure(Arrays.asList(new VersionedPackage(APP_B,
                 VERSION_CODE)), PackageWatchdog.FAILURE_REASON_APP_CRASH);
@@ -107,7 +108,9 @@ public class PackageWatchdogTest {
         mTestObserver1 = new TestObserver(OBSERVER_NAME_1, mLatch1);
         mTestObserver2 = new TestObserver(OBSERVER_NAME_2, mLatch2);
 
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
+        mPackageWatchdog.registerHealthObserver(mTestObserver2, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(
                 mTestObserver2, Arrays.asList(APP_A, APP_B), SHORT_DURATION);
         raiseFatalFailure(Arrays.asList(new VersionedPackage(APP_A, VERSION_CODE),
@@ -131,7 +134,9 @@ public class PackageWatchdogTest {
     public void testUnregistration() throws Exception {
         mTestObserver1 = new TestObserver(OBSERVER_NAME_1);
         mTestObserver2 = new TestObserver(OBSERVER_NAME_2, mLatch2);
+        mPackageWatchdog.registerHealthObserver(mTestObserver2, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver2, Arrays.asList(APP_A), SHORT_DURATION);
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
 
         mPackageWatchdog.unregisterHealthObserver(mTestObserver1);
@@ -155,7 +160,9 @@ public class PackageWatchdogTest {
         mTestObserver1 = new TestObserver(OBSERVER_NAME_1);
         mTestObserver2 = new TestObserver(OBSERVER_NAME_2);
 
+        mPackageWatchdog.registerHealthObserver(mTestObserver2, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver2, Arrays.asList(APP_A), SHORT_DURATION);
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
 
         for (int i = 0; i < FAILURE_COUNT_THRESHOLD - 1; i++) {
@@ -178,6 +185,7 @@ public class PackageWatchdogTest {
         mLatch1 = new CountDownLatch(2);
         mTestObserver1 = new TestObserver(OBSERVER_NAME_1, mLatch1);
 
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_A), SHORT_DURATION);
 
         raiseFatalFailure(Arrays.asList(new VersionedPackage(APP_A, VERSION_CODE)),
@@ -200,6 +208,7 @@ public class PackageWatchdogTest {
 
         mTestObserver2 = new TestObserver(OBSERVER_NAME_2, mLatch2);
 
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_B), SHORT_DURATION);
 
         raiseFatalFailure(Arrays.asList(new VersionedPackage(APP_A,
@@ -223,6 +232,7 @@ public class PackageWatchdogTest {
         mTestObserver1.setPersistent(true);
         mTestObserver1.setMayObservePackages(false);
 
+        mPackageWatchdog.registerHealthObserver(mTestObserver1, mContext.getMainExecutor());
         mPackageWatchdog.startObservingHealth(mTestObserver1, Arrays.asList(APP_B), SHORT_DURATION);
 
         raiseFatalFailure(Arrays.asList(new VersionedPackage(APP_A,
